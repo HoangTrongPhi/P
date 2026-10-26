@@ -1,3 +1,4 @@
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import type { AppInfo, LogEntry, LogLevel, TabId } from "../types/pipeline";
 
@@ -68,7 +69,8 @@ export const useAppStore = create<AppState>()((set) => ({
   setDragActive: (dragActive) => set({ dragActive }),
 }));
 
-/** Log from the UI side into the same drawer the backend writes to. */
+/** Log from the UI side into the same drawer the backend writes to (and to the app's stderr). */
 export function uiLog(level: LogLevel, message: string, source = "ui") {
   useAppStore.getState().addLogs([{ tsMs: Date.now(), level, source, message }]);
+  if (isTauri()) invoke("ui_log", { level, message }).catch(() => {});
 }

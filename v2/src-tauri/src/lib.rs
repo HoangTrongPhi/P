@@ -28,6 +28,7 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .invoke_handler(tauri::generate_handler![
             commands::app_cmd::app_info,
             commands::app_cmd::log_history,
+            commands::app_cmd::ui_log,
             commands::scanner_cmd::scan_directory,
             commands::renamer_cmd::dry_run_rename,
             commands::renamer_cmd::apply_rename,
@@ -39,6 +40,11 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::blender_cmd::discover_blender,
             commands::blender_cmd::run_blender_pack,
             commands::blender_cmd::cancel_blender_pack,
+            commands::preview_cmd::decode_image,
+            commands::preview_cmd::reveal_in_explorer,
+            commands::tools_cmd::pack_orm_texture,
+            commands::tools_cmd::find_duplicate_assets,
+            commands::tools_cmd::find_unused_textures,
         ])
 }
 

@@ -8,13 +8,14 @@ import type { TabId } from "../types/pipeline";
 
 const PREVIEWABLE = /\.(fbx|obj|gltf|glb|png|jpe?g|tga|dds|exr|hdr|webp|psd)$/i;
 
-/** Mirrors the prototype's routing: stay on the current tab unless a single file belongs elsewhere. */
+/** Mirrors the prototype's routing: stay on the current tab unless a single file belongs elsewhere.
+ * The Tools tab keeps image drops: they fill the ORM packer slots. */
 function tabForDrop(paths: string[], current: TabId): TabId {
   if (paths.length !== 1) return current;
   const p = paths[0].toLowerCase();
   if (p.endsWith(".blend")) return "blender";
   if (!PREVIEWABLE.test(p)) return current;
-  if (current === "renamer" || current === "tools" || (current === "fbx" && !p.endsWith(".fbx"))) return "preview";
+  if (current === "renamer" || (current === "fbx" && !p.endsWith(".fbx"))) return "preview";
   return current;
 }
 

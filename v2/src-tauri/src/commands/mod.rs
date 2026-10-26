@@ -4,8 +4,10 @@
 pub mod app_cmd;
 pub mod blender_cmd;
 pub mod fbx_cmd;
+pub mod preview_cmd;
 pub mod renamer_cmd;
 pub mod scanner_cmd;
+pub mod tools_cmd;
 
 /// The JSON the frontend sends (see `src/types/pipeline.ts`) must decode into the command inputs.
 #[cfg(test)]
@@ -48,6 +50,7 @@ mod contract_tests {
         assert_eq!(plan.options.mode, FixMode::Collect);
         assert_eq!(plan.options.subfolder, "tex");
         assert!(plan.options.dry_run && plan.options.backup && !plan.options.fix_all);
+        assert!(plan.options.search_parent && !plan.options.guess_missing, "safe defaults");
 
         let minimal: FbxFixPlan = serde_json::from_value(json!({ "paths": [] })).unwrap();
         assert_eq!(minimal.options.mode, FixMode::Relative);

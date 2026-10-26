@@ -9,6 +9,8 @@ export type FixScope = "issues" | "selected";
 interface FbxState {
   /** Dropped FBX files and folders (folders are searched recursively). */
   sources: string[];
+  /** Extra folders searched by file name for textures (e.g. a sibling `Textures/`). */
+  searchDirs: string[];
   files: FbxFileInfo[];
   selected: string | null;
   scanning: boolean;
@@ -20,6 +22,8 @@ interface FbxState {
   fixAll: boolean;
   backup: boolean;
   scope: FixScope;
+  searchParent: boolean;
+  guessMissing: boolean;
   /** Last dry run, shown until the options change. */
   preview: FbxFixResult | null;
   lastResult: FbxFixResult | null;
@@ -27,10 +31,12 @@ interface FbxState {
   load: (paths: string[]) => Promise<void>;
   rescan: () => Promise<void>;
   select: (path: string) => void;
-  setOptions: (p: Partial<Pick<FbxState, "mode" | "subfolder" | "rebaseDir" | "fixAll" | "backup" | "scope">>) => void;
+  setOptions: (p: Partial<Pick<FbxState, "mode" | "subfolder" | "rebaseDir" | "fixAll" | "backup" | "scope" | "searchParent" | "guessMissing">>) => void;
   runFix: (dryRun: boolean) => Promise<void>;
   restore: (path: string) => Promise<void>;
   clear: () => void;
+  addSearchDir: (dir: string) => Promise<void>;
+  removeSearchDir: (dir: string) => Promise<void>;
 }
 
 function syncHeader(files: FbxFileInfo[]) {
@@ -39,6 +45,7 @@ function syncHeader(files: FbxFileInfo[]) {
 
 export const useFbxStore = create<FbxState>()((set, get) => ({
   sources: [],
+  searchDirs: [],
   files: [],
   selected: null,
   scanning: false,
@@ -49,6 +56,8 @@ export const useFbxStore = create<FbxState>()((set, get) => ({
   fixAll: false,
   backup: true,
   scope: "issues",
+  searchParent: true,
+  guessMissing: false,
   preview: null,
   lastResult: null,
 
@@ -58,11 +67,11 @@ export const useFbxStore = create<FbxState>()((set, get) => ({
   },
 
   rescan: async () => {
-    const { sources, selected } = get();
+    const { sources, selected, searchDirs, searchParent } = get();
     if (!sources.length) return;
     set({ scanning: true });
     try {
-      const files = await scanFbxFiles(sources);
+      const files = await scanFbxFiles(sources, searchDirs, searchParent);
       const keep = files.some((f) => f.path === selected) ? selected : (files.find((f) => f.hasIssues) ?? files[0])?.path ?? null;
       set({ files, selected: keep });
       syncHeader(files);
@@ -79,14 +88,14 @@ export const useFbxStore = create<FbxState>()((set, get) => ({
   setOptions: (p) => set({ ...p, preview: null }),
 
   runFix: async (dryRun) => {
-    const { files, selected, scope, mode, subfolder, rebaseDir, fixAll, backup } = get();
+    const { files, selected, scope, mode, subfolder, rebaseDir, fixAll, backup, searchDirs, searchParent, guessMissing } = get();
     const targets =
       scope === "selected" ? files.filter((f) => f.path === selected) : files.filter((f) => !f.error && (fixAll || f.hasIssues));
     if (!targets.length) {
       uiLog("info", "Nothing to fix");
       return;
     }
-    const plan: FbxFixPlan = { paths: targets.map((f) => f.path), mode, subfolder, rebaseDir, fixAll, backup, dryRun };
+    const plan: FbxFixPlan = { paths: targets.map((f) => f.path), mode, subfolder, rebaseDir, fixAll, backup, dryRun, searchDirs, searchParent, guessMissing };
     set({ fixing: true });
     try {
       const result = await fixFbxPaths(plan);
@@ -114,6 +123,16 @@ export const useFbxStore = create<FbxState>()((set, get) => ({
   clear: () => {
     set({ sources: [], files: [], selected: null, preview: null, lastResult: null });
     syncHeader([]);
+  },
+
+  addSearchDir: async (dir) => {
+    if (get().searchDirs.includes(dir)) return;
+    set((s) => ({ searchDirs: [...s.searchDirs, dir], preview: null }));
+    await get().rescan();
+  },
+  removeSearchDir: async (dir) => {
+    set((s) => ({ searchDirs: s.searchDirs.filter((d) => d !== dir), preview: null }));
+    await get().rescan();
   },
 }));
 

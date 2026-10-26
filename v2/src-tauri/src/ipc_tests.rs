@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use tauri::ipc::{CallbackFn, InvokeBody};
+use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
 use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Listener, WebviewWindow, WebviewWindowBuilder};
@@ -31,6 +31,18 @@ impl Harness {
 
     /// `invoke(cmd, args)` exactly as `@tauri-apps/api/core` would send it.
     fn invoke(&self, cmd: &str, args: Value) -> Result<Value, Value> {
+        self.invoke_body(cmd, args).map(|body| body.deserialize::<Value>().expect("JSON response"))
+    }
+
+    /// For commands that answer with an ArrayBuffer (`tauri::ipc::Response`).
+    fn invoke_raw(&self, cmd: &str, args: Value) -> Result<Vec<u8>, Value> {
+        match self.invoke_body(cmd, args)? {
+            InvokeResponseBody::Raw(bytes) => Ok(bytes),
+            InvokeResponseBody::Json(j) => panic!("{cmd}: expected raw bytes, got JSON {j}"),
+        }
+    }
+
+    fn invoke_body(&self, cmd: &str, args: Value) -> Result<InvokeResponseBody, Value> {
         let url = if cfg!(windows) { "http://tauri.localhost" } else { "tauri://localhost" };
         get_ipc_response(
             &self.webview,
@@ -44,7 +56,6 @@ impl Harness {
                 invoke_key: INVOKE_KEY.to_string(),
             },
         )
-        .map(|body| body.deserialize::<Value>().expect("JSON response"))
     }
 
     fn ok(&self, cmd: &str, args: Value) -> Value {
@@ -87,6 +98,7 @@ fn app_info_and_log_history() {
     let entry = logs.as_array().unwrap().iter().find(|l| l["source"] == "scanner").expect("scanner entry backfilled").clone();
     assert_eq!(entry["level"], "info");
     assert!(entry["tsMs"].as_u64().unwrap() > 0 && entry["message"].as_str().unwrap().starts_with("Scanned"));
+    assert_eq!(h.ok("ui_log", json!({ "level": "warn", "message": "from the UI" })), Value::Null);
 }
 
 #[test]
@@ -287,4 +299,70 @@ fn blender_packer_flow() {
     assert!(err.as_str().unwrap().contains("not found"));
     assert_eq!(h.ok("cancel_blender_pack", json!({})), false);
     std::thread::sleep(Duration::from_millis(10));
+}
+
+#[test]
+fn previewer_decode_image() {
+    let h = Harness::new();
+    let dir = tempfile::tempdir().unwrap();
+    let tif = dir.path().join("height.tif");
+    image::RgbaImage::from_fn(3, 2, |x, y| image::Rgba([x as u8 * 10, y as u8 * 10, 7, 255])).save(&tif).unwrap();
+
+    // TextureViewer reads `width u32 LE | height u32 LE | RGBA8`.
+    let bytes = h.invoke_raw("decode_image", json!({ "path": s(&tif) })).unwrap();
+    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 3);
+    assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()), 2);
+    assert_eq!(bytes.len(), 8 + 3 * 2 * 4);
+    assert_eq!(&bytes[8 + 4 * 4..8 + 4 * 4 + 4], &[10, 10, 7, 255], "pixel (1,1)");
+
+    let err = h.invoke_body("decode_image", json!({ "path": s(&dir.path().join("missing.psd")) })).unwrap_err();
+    assert!(err.is_string());
+    assert!(h.invoke("reveal_in_explorer", json!({ "path": s(&dir.path().join("missing.png")) })).is_err());
+}
+
+#[test]
+fn pipeline_tools_flow() {
+    let h = Harness::new();
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let gray = |name: &str, v: u8, size: u32| {
+        let p = root.join("tex").join(name);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        image::GrayImage::from_pixel(size, size, image::Luma([v])).save(&p).unwrap();
+        p
+    };
+    let rough = gray("crate_roughness.png", 180, 8);
+    let metal = gray("crate_metallic.png", 255, 8);
+    let ao = gray("crate_ao.png", 90, 4);
+
+    // ORM packer (ToolsTab): all three inputs, PNG out.
+    let out = root.join("tex").join("T_Crate_ORM.png");
+    let written = h.ok(
+        "pack_orm_texture",
+        json!({ "config": { "roughnessPath": s(&rough), "metallicPath": s(&metal), "aoPath": s(&ao), "outputPath": s(&out), "format": "png", "roughnessFromGloss": false } }),
+    );
+    assert_eq!(written.as_str().map(PathBuf::from), Some(out.clone()));
+    let orm = image::open(&out).unwrap().to_rgb8();
+    assert_eq!(orm.dimensions(), (8, 8));
+    assert_eq!(orm.get_pixel(5, 5).0, [90, 180, 255], "R=AO G=Roughness B=Metallic");
+    let err = h.invoke("pack_orm_texture", json!({ "config": { "outputPath": s(&out), "format": "png" } })).unwrap_err();
+    assert!(err.as_str().unwrap().contains("at least one"));
+
+    // Duplicates: the ORM inputs are distinct, two copies of the metallic map are not.
+    fs::copy(&metal, root.join("copy_of_metal.png")).unwrap();
+    let dup = h.ok("find_duplicate_assets", json!({ "folder": s(root) }));
+    assert_eq!(dup["groups"].as_array().unwrap().len(), 1);
+    assert_eq!(dup["groups"][0]["files"].as_array().unwrap().len(), 2);
+    assert_eq!(dup["wastedBytes"], dup["groups"][0]["size"]);
+    assert!(h.invoke("find_duplicate_assets", json!({ "folder": s(&root.join("nope")) })).is_err());
+
+    // Unused textures: an FBX references only the roughness map.
+    build_binary_fbx(&root.join("crate.fbx"), r"C:\elsewhere\crate_roughness.png", 7400, b"");
+    let unused = h.ok("find_unused_textures", json!({ "folder": s(root) }));
+    let mut names: Vec<&str> = unused["textures"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+    names.sort();
+    assert_eq!(names, ["T_Crate_ORM.png", "copy_of_metal.png", "crate_ao.png", "crate_metallic.png"]);
+    assert_eq!(unused["referenceFiles"], 1);
+    assert_eq!(unused["totalTextures"], 5);
+    assert!(unused["reclaimableBytes"].as_u64().unwrap() > 0);
 }

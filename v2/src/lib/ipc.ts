@@ -6,10 +6,12 @@ import type {
   BlenderPackConfig,
   BlenderPackReport,
   BlenderProgress,
+  DuplicateReport,
   FbxFileInfo,
   FbxFixPlan,
   FbxFixResult,
   LogEntry,
+  OrmPackConfig,
   RenameAction,
   RenameConfig,
   RenameResult,
@@ -17,6 +19,7 @@ import type {
   ScanSummary,
   TransactionSummary,
   UndoResult,
+  UnusedReport,
 } from "../types/pipeline";
 
 /** Event names emitted by the Rust backend. Keep in sync with `logbus.rs` / `blender_cmd.rs`. */
@@ -67,8 +70,9 @@ export function renameHistory(folder: string): Promise<TransactionSummary[]> {
 
 // ---------------------------------------------------------------- FBX doctor
 
-export function scanFbxFiles(paths: string[], searchDirs?: string[]): Promise<FbxFileInfo[]> {
-  return invoke<FbxFileInfo[]>("scan_fbx_files", { paths, searchDirs });
+/** `searchParent` (default true) also looks in each FBX folder's parent, e.g. `../Textures`. */
+export function scanFbxFiles(paths: string[], searchDirs?: string[], searchParent = true): Promise<FbxFileInfo[]> {
+  return invoke<FbxFileInfo[]>("scan_fbx_files", { paths, searchDirs, searchParent });
 }
 
 export function fixFbxPaths(plan: FbxFixPlan): Promise<FbxFixResult> {
@@ -95,4 +99,36 @@ export function cancelBlenderPack(): Promise<boolean> {
 
 export function onBlenderProgress(handler: (p: BlenderProgress) => void): Promise<UnlistenFn> {
   return listen<BlenderProgress>(EVENTS.blenderProgress, (e) => handler(e.payload));
+}
+
+// ---------------------------------------------------------------- previewer & tools
+
+export interface DecodedImage {
+  width: number;
+  height: number;
+  /** RGBA8, rows top to bottom. */
+  pixels: Uint8Array;
+}
+
+/** PSD / TIFF and other formats the webview cannot decode, via Rust. */
+export async function decodeImage(path: string): Promise<DecodedImage> {
+  const buf = await invoke<ArrayBuffer>("decode_image", { path });
+  const view = new DataView(buf);
+  return { width: view.getUint32(0, true), height: view.getUint32(4, true), pixels: new Uint8Array(buf, 8) };
+}
+
+export function revealInExplorer(path: string): Promise<void> {
+  return invoke<void>("reveal_in_explorer", { path });
+}
+
+export function packOrmTexture(config: OrmPackConfig): Promise<string> {
+  return invoke<string>("pack_orm_texture", { config });
+}
+
+export function findDuplicateAssets(folder: string): Promise<DuplicateReport> {
+  return invoke<DuplicateReport>("find_duplicate_assets", { folder });
+}
+
+export function findUnusedTextures(folder: string): Promise<UnusedReport> {
+  return invoke<UnusedReport>("find_unused_textures", { folder });
 }

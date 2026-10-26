@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### V2 migration — Phase 3: previewer and pipeline tools
+- **Asset Previewer**: Three.js viewport for FBX, OBJ (+MTL), glTF and GLB loaded through `asset://`
+  (absolute and relative texture paths resolved, TGA / DDS textures), studio lighting, scaled ground
+  grid, shaded / wireframe / UV checker / normals modes, reset camera, stats HUD (triangles,
+  vertices, meshes, materials, UV sets, skinning, animations, size) and a missing-texture warning.
+- **Texture inspector**: GPU pan / zoom-to-cursor, exposure (−5…+5 stops) and gamma (0.2…3.0) in
+  linear light, channel isolation (RGBA, RGB, A, R, G, B) over a checkerboard; PNG, JPG, WebP, BMP,
+  TGA, DDS, HDR, EXR in the webview, PSD composite and TIFF decoded in Rust.
+- **PSD composite reader** in Rust (RGB, grayscale, indexed, CMYK; 8 / 16 / 32-bit; raw and RLE;
+  PSD and PSB): pixel-identical to psd-tools on the prototype's sample PSD.
+- **Pipeline Tools**: ORM channel packer (R = AO, G = Roughness, B = Metallic; resampling, gloss
+  inversion, PNG / TGA, name-based slot assignment on drop), duplicate finder (size pre-filter +
+  parallel XXH3-128), unused-texture detector (FBX, MTL, glTF, GLB references), reveal in Explorer.
+- The previewer is code-split: three.js (774 KB) loads only when the tab is first opened.
+- Fix (found with a real project): three.js' FBXLoader drops texture directories and only looks
+  next to the FBX, so `FBX/` + `Textures/` layouts showed no textures. The viewer now resolves FBX
+  textures through the Rust doctor (also searching the parent folder). FBX Doctor gained an
+  "Extra texture folders" option for scan and fix. Missing-texture warnings show plain file names.
+- **FBX Doctor defaults changed (differs from the prototype)** after a Relative fix wrote guessed
+  `textures/x.png` paths into a real file whose textures were in `../Textures`:
+  - `searchParent` (on): textures are also looked up by name in the FBX folder's parent and its
+    direct subfolders (never a drive root, never deeper), so `FBX/` + `Textures/` resolves.
+  - `guessMissing` (off): in Relative and Collect mode a texture that cannot be found keeps its
+    current path and is reported, instead of being rewritten to `<subfolder>/<name>`.
+  - Both are checkboxes in the Fix panel; the prototype's behaviour is one click away.
+- 51 Rust tests, including IPC tests for every new command.
+
 ### V2 migration — module UIs and IPC tests
 - Renamer, FBX Doctor and Blender Packer tabs wired to the Phase 2 commands (live dry-run table,
   rule builder, preview-then-fix, Blender progress and report). Drops and dialogs route to the tab.

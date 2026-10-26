@@ -27,6 +27,13 @@ pub fn app_info<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppInfo {
     }
 }
 
+/// Mirror a UI-side log line to stderr so `tauri dev` output shows frontend errors too.
+/// (Not re-emitted: the UI already shows its own lines in the drawer.)
+#[tauri::command]
+pub fn ui_log(level: String, message: String) {
+    eprintln!("[UI {level}] {message}");
+}
+
 /// Entries logged before the frontend subscribed to `log://entry`.
 #[tauri::command]
 pub fn log_history(bus: State<'_, LogBus>) -> Vec<LogEntry> {

@@ -204,13 +204,45 @@ function FixPanel() {
     <GlassCard title="Fix" className="flex w-[300px] shrink-0 flex-col">
       <div className="flex flex-col gap-3 border-b border-edge p-3">
         <div>
+          <FieldLabel>Extra texture folders</FieldLabel>
+          <div className="flex flex-col gap-1">
+            {s.searchDirs.map((d) => (
+              <div key={d} className="flex items-center gap-1 rounded-md bg-canvas/60 py-0.5 pr-0.5 pl-2">
+                <PathText path={d} className="flex-1 text-ink-muted" />
+                <button type="button" className="icon-btn size-5" aria-label="Remove folder" onClick={() => void s.removeSearchDir(d)}>
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn h-6 justify-center px-2"
+              title="Textures are looked up by file name in these folders (up to 4 levels deep), e.g. a sibling Textures folder"
+              onClick={async () => { const d = await pickOne("folder"); if (d) void s.addSearchDir(d); }}
+            >
+              <FolderOpen className="size-3.5" /> Add folder
+            </button>
+          </div>
+          <div className="mt-2">
+            <Checkbox
+              checked={s.searchParent}
+              onChange={(searchParent) => {
+                s.setOptions({ searchParent });
+                void s.rescan();
+              }}
+              label="Also search the parent folder"
+              hint="Finds ../Textures next to an FBX folder"
+            />
+          </div>
+        </div>
+        <div>
           <FieldLabel>Mode</FieldLabel>
           <Segmented value={s.mode} onChange={(mode) => s.setOptions({ mode })} options={MODES} />
           <div className="mt-1 text-[11px] text-ink-faint">{MODES.find((m) => m.value === s.mode)?.hint}</div>
         </div>
-        {s.mode !== "strip" && (
+        {(s.mode === "collect" || (s.mode === "relative" && s.guessMissing && !s.rebaseDir)) && (
           <div>
-            <FieldLabel>{s.mode === "collect" ? "Texture subfolder" : "Fallback subfolder (missing textures)"}</FieldLabel>
+            <FieldLabel>{s.mode === "collect" ? "Texture subfolder" : "Guessed subfolder (missing textures)"}</FieldLabel>
             <TextField mono className="w-full" value={s.subfolder} onChange={(e) => s.setOptions({ subfolder: e.target.value })} />
           </div>
         )}
@@ -235,6 +267,13 @@ function FixPanel() {
           ]}
         />
         <Checkbox checked={s.fixAll} onChange={(fixAll) => s.setOptions({ fixAll })} label="Rewrite every path" hint="Not only absolute or broken ones" />
+        <Checkbox
+          checked={s.guessMissing}
+          disabled={s.mode === "strip"}
+          onChange={(guessMissing) => s.setOptions({ guessMissing })}
+          label="Guess paths for missing textures"
+          hint={s.guessMissing ? "Unfound textures get <subfolder>/<name>" : "Unfound textures keep their current path"}
+        />
         <Checkbox checked={s.backup} onChange={(backup) => s.setOptions({ backup })} label="Keep .fbx.bak backup" />
         <div className="flex gap-2">
           <button type="button" className="btn flex-1 justify-center" disabled={!targets.length || s.fixing} onClick={() => void s.runFix(true)}>

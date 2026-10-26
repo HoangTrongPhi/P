@@ -40,10 +40,16 @@ fn expand_fbx(paths: &[String]) -> Vec<PathBuf> {
 }
 
 #[tauri::command]
-pub async fn scan_fbx_files<R: Runtime>(app: AppHandle<R>, paths: Vec<String>, search_dirs: Option<Vec<String>>) -> Result<Vec<FbxFileInfo>, String> {
+pub async fn scan_fbx_files<R: Runtime>(
+    app: AppHandle<R>,
+    paths: Vec<String>,
+    search_dirs: Option<Vec<String>>,
+    search_parent: Option<bool>,
+) -> Result<Vec<FbxFileInfo>, String> {
     let infos = tauri::async_runtime::spawn_blocking(move || {
         let search: Vec<PathBuf> = search_dirs.unwrap_or_default().into_iter().map(PathBuf::from).collect();
-        expand_fbx(&paths).par_iter().map(|p| scan_fbx(p, &search).unwrap_or_else(|e| FbxFileInfo::failed(p, e))).collect::<Vec<_>>()
+        let parent = search_parent.unwrap_or(true);
+        expand_fbx(&paths).par_iter().map(|p| scan_fbx(p, &search, parent).unwrap_or_else(|e| FbxFileInfo::failed(p, e))).collect::<Vec<_>>()
     })
     .await
     .map_err(|e| e.to_string())?;

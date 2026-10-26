@@ -269,16 +269,29 @@ fn ascii_set(doc: &mut FbxAsciiDocument, line_no: usize, new_value: &[u8]) -> Fb
 
 // =========================================================================== resolution
 
-/// Lazy case-insensitive basename -> path index of files near the FBX (shallowest match wins).
+/// Lazy case-insensitive basename -> path index of files near the FBX (shallowest match wins;
+/// on a tie the earlier root wins, so the FBX's own folder beats the parent).
 struct NameIndex {
-    roots: Vec<PathBuf>,
+    /// (root, walkdir max depth): 1 = files in the root itself, 2 = also its direct subfolders, …
+    roots: Vec<(PathBuf, usize)>,
     index: Option<HashMap<String, (PathBuf, usize)>>,
 }
 
-impl NameIndex {
-    const MAX_DEPTH: usize = 4;
+/// FBX folder and user-given folders: files up to 4 directory levels below them.
+const DEEP: usize = 4 + 1;
+/// Parent of the FBX folder: itself and its direct subfolders only (`../Textures/x.png`).
+const SHALLOW: usize = 2;
 
-    fn new(roots: Vec<PathBuf>) -> Self {
+impl NameIndex {
+    fn new(fbx_dir: &Path, search_dirs: &[PathBuf], search_parent: bool) -> Self {
+        let mut roots = vec![(fbx_dir.to_path_buf(), DEEP)];
+        roots.extend(search_dirs.iter().map(|d| (d.clone(), DEEP)));
+        if search_parent {
+            // Never index a whole drive: skip when the parent is a filesystem root.
+            if let Some(parent) = fbx_dir.parent().filter(|p| p.parent().is_some()) {
+                roots.push((parent.to_path_buf(), SHALLOW));
+            }
+        }
         Self { roots, index: None }
     }
 
@@ -286,9 +299,8 @@ impl NameIndex {
         let roots = &self.roots;
         let index = self.index.get_or_insert_with(|| {
             let mut idx: HashMap<String, (PathBuf, usize)> = HashMap::new();
-            for root in roots.iter().filter(|r| r.is_dir()) {
-                // Files inside directories up to MAX_DEPTH levels below the root.
-                for e in WalkDir::new(root).max_depth(Self::MAX_DEPTH + 1).into_iter().flatten() {
+            for (root, max_depth) in roots.iter().filter(|(r, _)| r.is_dir()) {
+                for e in WalkDir::new(root).max_depth(*max_depth).into_iter().flatten() {
                     if !e.file_type().is_file() {
                         continue;
                     }
@@ -338,7 +350,7 @@ struct Loaded {
     refs: Vec<TextureRef>,
 }
 
-fn load_and_resolve(path: &Path, search_dirs: &[PathBuf]) -> FbxResult<Loaded> {
+fn load_and_resolve(path: &Path, search_dirs: &[PathBuf], search_parent: bool) -> FbxResult<Loaded> {
     let data = fs::read(path)?;
     let (doc, mut refs) = if is_binary(&data) {
         let doc = parse_binary(&data)?;
@@ -352,9 +364,7 @@ fn load_and_resolve(path: &Path, search_dirs: &[PathBuf]) -> FbxResult<Loaded> {
     };
 
     let fbx_dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
-    let mut roots = vec![fbx_dir.clone()];
-    roots.extend(search_dirs.iter().cloned());
-    let mut index = NameIndex::new(roots);
+    let mut index = NameIndex::new(&fbx_dir, search_dirs, search_parent);
     for r in refs.iter_mut() {
         resolve(r, &fbx_dir, &mut index);
     }
@@ -382,6 +392,13 @@ fn load_and_resolve(path: &Path, search_dirs: &[PathBuf]) -> FbxResult<Loaded> {
         }
     }
     Ok(Loaded { doc, refs })
+}
+
+/// Lower-cased texture file names referenced by an FBX (no disk lookups; for usage reports).
+pub fn referenced_basenames(path: &Path) -> FbxResult<Vec<String>> {
+    let data = fs::read(path)?;
+    let refs = if is_binary(&data) { binary_refs(&parse_binary(&data)?) } else { ascii_refs(&parse_ascii(&data)?) };
+    Ok(refs.iter().filter(|r| r.kind != PathKind::Empty).map(|r| r.basename().to_lowercase()).collect())
 }
 
 /// One reference as shown in the UI (`FbxPathEntry` in `src/types/pipeline.ts`).
@@ -443,8 +460,9 @@ impl FbxFileInfo {
 }
 
 /// Every texture/media path referenced by `path`, classified and resolved against the disk.
-pub fn scan_fbx(path: &Path, search_dirs: &[PathBuf]) -> FbxResult<FbxFileInfo> {
-    let loaded = load_and_resolve(path, search_dirs)?;
+/// `search_parent` also looks in the FBX folder's parent and its direct subfolders.
+pub fn scan_fbx(path: &Path, search_dirs: &[PathBuf], search_parent: bool) -> FbxResult<FbxFileInfo> {
+    let loaded = load_and_resolve(path, search_dirs, search_parent)?;
     let (version, is_binary) = match &loaded.doc {
         Doc::Binary { doc, .. } => (doc.version, true),
         Doc::Ascii(doc) => (doc.version, false),
@@ -483,11 +501,29 @@ pub struct FixOptions {
     pub dry_run: bool,
     #[serde(default)]
     pub search_dirs: Vec<PathBuf>,
+    /// Also look for textures in the FBX folder's parent and its direct subfolders
+    /// (the common `FBX/` + `Textures/` layout).
+    #[serde(default = "yes")]
+    pub search_parent: bool,
+    /// Rewrite textures that cannot be found to `<subfolder>/<name>`. Off by default:
+    /// unresolved paths are left as they are and reported.
+    #[serde(default)]
+    pub guess_missing: bool,
 }
 
 impl Default for FixOptions {
     fn default() -> Self {
-        FixOptions { mode: FixMode::Relative, rebase_dir: None, subfolder: default_subfolder(), fix_all: false, backup: true, dry_run: false, search_dirs: Vec::new() }
+        FixOptions {
+            mode: FixMode::Relative,
+            rebase_dir: None,
+            subfolder: default_subfolder(),
+            fix_all: false,
+            backup: true,
+            dry_run: false,
+            search_dirs: Vec::new(),
+            search_parent: true,
+            guess_missing: false,
+        }
     }
 }
 
@@ -530,12 +566,19 @@ fn join_sub(subfolder: &str, name: &[u8]) -> Vec<u8> {
 }
 
 /// New raw value for one reference, plus an optional warning.
-pub fn compute_new_path(r: &TextureRef, fbx_dir: &Path, mode: FixMode, rebase_dir: Option<&Path>, subfolder: &str) -> (Vec<u8>, Option<String>) {
+///
+/// Unless `guess_missing` is set, a texture that cannot be found keeps its current path in
+/// Relative and Collect mode (Strip and an explicit rebase folder are deliberate choices).
+pub fn compute_new_path(r: &TextureRef, fbx_dir: &Path, mode: FixMode, rebase_dir: Option<&Path>, subfolder: &str, guess_missing: bool) -> (Vec<u8>, Option<String>) {
     let name = basename_bytes(&r.value).to_vec();
     let name_s = lossy(&name);
+    let keep = || (r.value.clone(), Some(format!("{name_s}: not found, path left unchanged (add a texture folder, or enable guessing)")));
     match mode {
         FixMode::Strip => (name, None),
         FixMode::Collect => {
+            if r.resolved.is_none() && !guess_missing {
+                return keep();
+            }
             let warn = r.resolved.is_none().then(|| format!("{name_s}: source texture not found, path set but nothing copied"));
             (join_sub(subfolder, &name), warn)
         }
@@ -556,6 +599,9 @@ pub fn compute_new_path(r: &TextureRef, fbx_dir: &Path, mode: FixMode, rebase_di
                     None => (name, Some(format!("{name_s}: texture is on another drive, stripped to file name (use Collect mode)"))),
                 };
             }
+            if !guess_missing {
+                return keep();
+            }
             let fallback = join_sub(subfolder, &name);
             let warn = format!("{name_s}: texture missing, guessed '{}'", lossy(&fallback));
             (fallback, Some(warn))
@@ -573,14 +619,14 @@ fn file_size(p: &Path) -> Option<u64> {
 /// A `<file>.fbx.bak` copy of the original is kept unless one already exists.
 pub fn fix_fbx(path: &Path, opts: &FixOptions) -> FbxResult<FixReport> {
     let fbx_dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
-    let Loaded { mut doc, refs } = load_and_resolve(path, &opts.search_dirs)?;
+    let Loaded { mut doc, refs } = load_and_resolve(path, &opts.search_dirs, opts.search_parent)?;
     let mut report = FixReport { path: path.to_path_buf(), changes: vec![], copied: vec![], warnings: vec![], backup: None, written: false, dry_run: opts.dry_run };
 
     for r in &refs {
         if r.kind == PathKind::Empty || !(opts.fix_all || r.is_problem()) {
             continue;
         }
-        let (new_value, warn) = compute_new_path(r, &fbx_dir, opts.mode, opts.rebase_dir.as_deref(), &opts.subfolder);
+        let (new_value, warn) = compute_new_path(r, &fbx_dir, opts.mode, opts.rebase_dir.as_deref(), &opts.subfolder, opts.guess_missing);
         if let Some(w) = warn {
             if !report.warnings.contains(&w) {
                 report.warnings.push(w);

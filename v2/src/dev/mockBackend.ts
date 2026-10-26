@@ -4,6 +4,7 @@
  */
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { useAppStore } from "../stores/appStore";
 import type { FbxFileInfo, RenameRow, RenameRuleSpec } from "../types/pipeline";
 
 const ROOT = "D:\\Assets\\Props";
@@ -13,6 +14,33 @@ const FILES = [
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Real sample files under `sample-assets/` (generated locally), served by Vite as-is. */
+const PREVIEW_ROOT = "/sample-assets/previewer";
+const PREVIEW_FILES = [
+  "anim_cube.gltf", "crate.glb", "crate.obj", "crate_abs.fbx", "crate_diffuse.png", "textures/decal_alpha.tga", "textures/height_16bit.png",
+  "textures/metal_plate_diff.jpg", "textures/poster.psd", "textures/rock01_Roughness.png", "textures/sky_studio.exr",
+  "textures/sky_studio.hdr", "textures/ui_icon.dds", "textures/wood_planks_basecolor.png", "textures/wood_planks_normal.png",
+];
+
+/** Stand-in for the Rust PSD decoder: the psd-tools composite saved next to the PSD. */
+async function fakeDecode(path: string): Promise<ArrayBuffer> {
+  const img = new Image();
+  img.src = path.replace(/\.(psd|tiff?)$/i, "_ref.png");
+  await img.decode();
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext("2d")!;
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, img.width, img.height).data;
+  const out = new Uint8Array(8 + px.length);
+  const view = new DataView(out.buffer);
+  view.setUint32(0, img.width, true);
+  view.setUint32(4, img.height, true);
+  out.set(px, 8);
+  return out.buffer;
+}
 
 /** Rough stand-in for the Rust rules, good enough to see the table react. */
 function fakeRename(name: string, rules: RenameRuleSpec[]): string {
@@ -82,7 +110,8 @@ function fbxFiles(): FbxFileInfo[] {
 }
 
 if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
-  (globalThis as { isTauri?: boolean }).isTauri = true;
+  (globalThis as { isTauri?: boolean; __PP_MOCK__?: boolean }).isTauri = true;
+  (globalThis as { __PP_MOCK__?: boolean }).__PP_MOCK__ = true;
   mockWindows("main");
   mockIPC(
     async (cmd, args) => {
@@ -96,8 +125,11 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           return { isDirectory: !/\.\w+$/.test(a.path), isFile: /\.\w+$/.test(a.path), size: 0 };
         case "plugin:dialog|open": {
           const o = a.options ?? {};
-          if (o.directory) return ROOT;
+          const tab = useAppStore.getState().activeTab;
+          if (o.directory) return tab === "preview" || tab === "tools" ? PREVIEW_ROOT : ROOT;
           const ext = o.filters?.[0]?.extensions?.[0];
+          if (o.filters?.[0]?.name === "Assets") return [`${PREVIEW_ROOT}/crate.glb`];
+          if (o.filters?.[0]?.name === "Textures") return `${PREVIEW_ROOT}/textures/rock01_Roughness.png`;
           if (ext === "blend") return [`${ROOT}\\scene\\crate.blend`];
           if (ext === "exe") return "C:\\Tools\\blender\\blender.exe";
           return [`${ROOT}\\crate.fbx`, `${ROOT}\\hero.fbx`];
@@ -105,6 +137,8 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
         case "plugin:dialog|save":
           return a.options?.defaultPath ?? `${ROOT}\\out.zip`;
         case "scan_directory":
+          if (String(a.path).startsWith(PREVIEW_ROOT))
+            return { root: a.path, files: PREVIEW_FILES.map((f) => ({ path: `${PREVIEW_ROOT}/${f}`, name: f.split("/").pop(), size: 4096, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 2, errors: [] };
           return { root: a.path, files: FILES.map((f) => ({ path: `${ROOT}\\${f}`, name: f, size: 1024, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 3, errors: [] };
         case "dry_run_rename":
           await sleep(120);
@@ -163,6 +197,37 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
         }
         case "cancel_blender_pack":
           return true;
+        case "ui_log":
+          return null;
+        case "decode_image":
+          return fakeDecode(a.path);
+        case "reveal_in_explorer":
+          return null;
+        case "pack_orm_texture":
+          await sleep(300);
+          return a.config.outputPath;
+        case "find_duplicate_assets":
+          await sleep(400);
+          return {
+            groups: [
+              { hash: "9f2c1e7a4b3d5e6f00112233445566778", size: 1_572_864, files: [`${PREVIEW_ROOT}/crate_diffuse.png`, `${PREVIEW_ROOT}/tex_external/crate_diffuse.png`, `${PREVIEW_ROOT}/backup/crate_diffuse.png`] },
+              { hash: "11aa22bb33cc44dd55ee66ff77889900", size: 262_144, files: [`${PREVIEW_ROOT}/textures/wood_planks_normal.png`, `${PREVIEW_ROOT}/old/wood_N.png`] },
+            ],
+            wastedBytes: 1_572_864 * 2 + 262_144,
+            scannedFiles: 128,
+            hashedFiles: 9,
+            elapsedMs: 41,
+            errors: [],
+          };
+        case "find_unused_textures":
+          await sleep(400);
+          return {
+            textures: ["textures/decal_alpha.tga", "textures/ui_icon.dds", "textures/sky_studio.exr"].map((f) => ({ path: `${PREVIEW_ROOT}/${f}`, name: f.split("/").pop(), size: 350_000, modifiedMs: 0, category: "texture" })),
+            reclaimableBytes: 1_050_000,
+            totalTextures: 11,
+            referenceFiles: 3,
+            warnings: [],
+          };
         default:
           if (cmd.startsWith("plugin:event|")) return 0;
           console.warn("mockBackend: unhandled", cmd, args);

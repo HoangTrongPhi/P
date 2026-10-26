@@ -128,7 +128,7 @@ mod tests {
     use std::path::Path;
 
     fn opts(mode: FixMode) -> FixOptions {
-        FixOptions { mode, ..Default::default() }
+        FixOptions { mode, search_parent: false, ..Default::default() }
     }
 
     fn new_values(rep: &FixReport) -> HashSet<String> {
@@ -156,7 +156,7 @@ mod tests {
             assert_eq!(doc.version, version);
             assert_eq!(serialize_binary(&doc, Some(data.len() - doc.footer.len())), data);
 
-            let info = scan_fbx(&fbx, &[]).unwrap();
+            let info = scan_fbx(&fbx, &[], false).unwrap();
             assert!(info.is_binary);
             let fields: HashSet<_> = info.entries.iter().map(|e| e.property_name.as_str()).collect();
             assert_eq!(fields, HashSet::from(["P:Path", "Filename", "RelativeFilename", "FileName"]));
@@ -188,7 +188,7 @@ mod tests {
             let body_end = data.len() - footer.len();
             assert_eq!((body_end + 20 + pad) % 16, 0, "footer alignment recomputed");
             assert_eq!(&footer[footer.len() - 140..footer.len() - 136], &version.to_le_bytes());
-            let info = scan_fbx(&fbx, &[]).unwrap();
+            let info = scan_fbx(&fbx, &[], false).unwrap();
             assert!(!info.has_issues && info.entries.iter().all(|e| e.resolution == Resolution::Found));
         }
     }
@@ -208,7 +208,7 @@ mod tests {
 
         let fbx = build_binary_fbx(&model.join("rel.fbx"), &tex, 7400, b"");
         assert_eq!(new_values(&fix_fbx(&fbx, &opts(FixMode::Relative)).unwrap()), HashSet::from(["../elsewhere/wood.png".into()]));
-        assert!(scan_fbx(&fbx, &[]).unwrap().entries.iter().all(|e| e.resolution == Resolution::Found));
+        assert!(scan_fbx(&fbx, &[], false).unwrap().entries.iter().all(|e| e.resolution == Resolution::Found));
 
         let fbx = build_binary_fbx(&model.join("col.fbx"), &tex, 7400, b"");
         let rep = fix_fbx(&fbx, &FixOptions { subfolder: "tex".into(), ..opts(FixMode::Collect) }).unwrap();
@@ -232,20 +232,77 @@ mod tests {
         assert!(rep.warnings.iter().any(|w| w.contains("not present")));
     }
 
+    /// Unfound textures keep their path by default (the Akan_Hotel incident: a guessed
+    /// `textures/x.png` replaced paths that a texture folder would have resolved).
     #[test]
-    fn missing_texture_warns() {
+    fn missing_texture_left_unchanged_unless_guessing() {
         let dir = tempfile::tempdir().unwrap();
         let fbx = build_binary_fbx(&dir.path().join("m.fbx"), r"Z:\nowhere\ghost.png", 7400, b"");
-        let rep = fix_fbx(&fbx, &opts(FixMode::Relative)).unwrap();
+        let original = fs::read(&fbx).unwrap();
+        for mode in [FixMode::Relative, FixMode::Collect] {
+            let rep = fix_fbx(&fbx, &opts(mode)).unwrap();
+            assert!(rep.changes.is_empty() && !rep.written, "{mode:?}");
+            assert!(rep.warnings.iter().any(|w| w.contains("left unchanged")));
+        }
+        assert_eq!(fs::read(&fbx).unwrap(), original, "file untouched");
+
+        let rep = fix_fbx(&fbx, &FixOptions { guess_missing: true, ..opts(FixMode::Relative) }).unwrap();
         assert_eq!(new_values(&rep), HashSet::from(["textures/ghost.png".into()]));
-        assert!(rep.warnings.iter().any(|w| w.contains("missing")));
+        assert!(rep.warnings.iter().any(|w| w.contains("guessed")));
+    }
+
+    /// `Project/FBX/m.fbx` + `Project/Textures/wood.png` with a dead absolute path.
+    fn sibling_layout() -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("Project");
+        fs::create_dir_all(project.join("FBX")).unwrap();
+        fs::create_dir_all(project.join("Textures")).unwrap();
+        fs::write(project.join("Textures").join("wood.png"), b"png").unwrap();
+        let fbx = build_binary_fbx(&project.join("FBX").join("m.fbx"), r"C:\Users\Someone\Desktop\Old\Textures\wood.png", 7700, b"");
+        (dir, project, fbx)
+    }
+
+    #[test]
+    fn sibling_textures_folder_found_by_default() {
+        let (_dir, _project, fbx) = sibling_layout();
+        let alone = scan_fbx(&fbx, &[], false).unwrap();
+        assert!(alone.entries.iter().all(|e| e.resolution == Resolution::Missing));
+        let with_parent = scan_fbx(&fbx, &[], true).unwrap();
+        assert!(with_parent.entries.iter().all(|e| e.resolution == Resolution::FoundByName));
+
+        // Default options search the parent: correct relative paths, no guessing.
+        let rep = fix_fbx(&fbx, &FixOptions::default()).unwrap();
+        assert_eq!(new_values(&rep), HashSet::from(["../Textures/wood.png".to_string()]));
+        assert!(rep.warnings.is_empty());
+        assert!(scan_fbx(&fbx, &[], false).unwrap().entries.iter().all(|e| e.resolution == Resolution::Found));
+    }
+
+    #[test]
+    fn sibling_textures_folder_via_search_dirs() {
+        let (_dir, project, fbx) = sibling_layout();
+        let with_project = scan_fbx(&fbx, std::slice::from_ref(&project), false).unwrap();
+        assert!(with_project.entries.iter().all(|e| e.resolution == Resolution::FoundByName));
+        let rep = fix_fbx(&fbx, &FixOptions { search_dirs: vec![project.clone()], ..opts(FixMode::Relative) }).unwrap();
+        assert_eq!(new_values(&rep), HashSet::from(["../Textures/wood.png".to_string()]));
+        assert!(rep.warnings.is_empty());
+    }
+
+    /// The parent is searched shallowly: a same-named file two folders below it is not used.
+    #[test]
+    fn parent_search_is_shallow() {
+        let (_dir, project, fbx) = sibling_layout();
+        fs::remove_file(project.join("Textures").join("wood.png")).unwrap();
+        let deep = project.join("Other").join("Old").join("Textures");
+        fs::create_dir_all(&deep).unwrap();
+        fs::write(deep.join("wood.png"), b"unrelated").unwrap();
+        assert!(scan_fbx(&fbx, &[], true).unwrap().entries.iter().all(|e| e.resolution == Resolution::Missing));
     }
 
     #[test]
     fn embedded_media_detected() {
         let dir = tempfile::tempdir().unwrap();
         let fbx = build_binary_fbx(&dir.path().join("m.fbx"), r"C:\x\wood.png", 7400, b"\x89PNG fake");
-        let info = scan_fbx(&fbx, &[]).unwrap();
+        let info = scan_fbx(&fbx, &[], false).unwrap();
         let video: Vec<_> = info.entries.iter().filter(|e| e.node_name == "Video::wood").collect();
         assert!(!video.is_empty() && video.iter().all(|e| e.embedded && e.resolution == Resolution::Embedded));
     }
@@ -255,7 +312,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("wood.png"), b"png").unwrap();
         let fbx = build_ascii_fbx(&dir.path().join("a.fbx"), r"C:\Users\John\Textures\wood.png");
-        let info = scan_fbx(&fbx, &[]).unwrap();
+        let info = scan_fbx(&fbx, &[], false).unwrap();
         assert!(!info.is_binary);
         assert_eq!(info.version, 7400);
         let fields: Vec<_> = info.entries.iter().map(|e| (e.node_name.as_str(), e.property_name.as_str())).collect();
@@ -271,7 +328,7 @@ mod tests {
         assert!(text.contains("\r\n") && !text.replace("\r\n", "").contains('\n'), "line endings preserved");
         assert!(!text.contains(r"C:\Users"));
         assert!(text.contains(r#"P: "Path", "KString", "XRefUrl", "", "wood.png""#));
-        assert!(!scan_fbx(&fbx, &[]).unwrap().has_issues);
+        assert!(!scan_fbx(&fbx, &[], false).unwrap().has_issues);
     }
 
     #[test]
@@ -299,12 +356,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("x.fbx");
         fs::write(&p, "hello").unwrap();
-        assert!(scan_fbx(&p, &[]).is_err());
+        assert!(scan_fbx(&p, &[], false).is_err());
 
         let fbx = build_binary_fbx(&dir.path().join("t.fbx"), r"C:\x\wood.png", 7500, b"");
         let data = fs::read(&fbx).unwrap();
         fs::write(&fbx, &data[..data.len() / 2]).unwrap();
-        assert!(scan_fbx(&fbx, &[]).is_err());
+        assert!(scan_fbx(&fbx, &[], false).is_err());
     }
 
     /// Byte parity over any real FBX files in `PP_FBX_FIXTURES` (a folder), when provided.
@@ -327,5 +384,36 @@ mod tests {
             checked += 1;
         }
         eprintln!("external_fixture_parity: {checked} file(s) byte-identical");
+    }
+}
+
+/// Viewer-style lookup on a real file: `PP_FBX_PROBE=<file.fbx>` scans it like the previewer
+/// does (parent folder included) and prints how many textures resolve.
+#[cfg(test)]
+#[test]
+fn probe_real_fbx_texture_lookup() {
+    let Ok(path) = std::env::var("PP_FBX_PROBE") else { return };
+    let path = std::path::PathBuf::from(path);
+    let info = doctor::scan_fbx(&path, &[], true).unwrap();
+    let mut names: std::collections::BTreeMap<String, Option<String>> = Default::default();
+    for e in &info.entries {
+        let base = doctor::basename_bytes(e.original_path.as_bytes()).to_vec();
+        let slot = names.entry(String::from_utf8_lossy(&base).to_lowercase()).or_default();
+        if slot.is_none() {
+            *slot = e.resolved_path.clone();
+        }
+    }
+    let found = names.values().filter(|v| v.is_some()).count();
+    for (n, p) in &names {
+        eprintln!("{n} -> {p:?}");
+    }
+    eprintln!("probe: {found}/{} texture names resolved", names.len());
+
+    // What Fix would do with the default options (dry run: nothing is written).
+    let rep = doctor::fix_fbx(&path, &doctor::FixOptions { dry_run: true, ..Default::default() }).unwrap();
+    let new: std::collections::BTreeSet<&str> = rep.changes.iter().map(|c| c.new.as_str()).collect();
+    eprintln!("probe fix (dry run): {} change(s), {} warning(s), written={}", rep.changes.len(), rep.warnings.len(), rep.written);
+    for n in new.iter().take(5) {
+        eprintln!("  -> {n}");
     }
 }

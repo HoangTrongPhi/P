@@ -1,8 +1,9 @@
 //! Pure Rust domain logic, independent of Tauri so it can be unit-tested directly.
-//!
-//! Phase 3 adds: `image_ops`, `duplicate_finder`.
 
 pub mod blender_runner;
+pub mod duplicate_finder;
 pub mod fbx;
+pub mod image_ops;
 pub mod renamer;
 pub mod scanner;
+pub mod usage;

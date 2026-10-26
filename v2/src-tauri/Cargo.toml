@@ -4,7 +4,7 @@ version = "2.0.0-alpha.1"
 description = "Project P — 3D Asset Toolkit & Doctor"
 authors = ["Phineas"]
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.82"
 
 [lib]
 name = "project_p_lib"
@@ -26,7 +26,7 @@ walkdir = "2.5"
 regex = "1.10"
 byteorder = "1.5"
 # Only the codecs the toolkit reads/writes, to keep the binary small.
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "webp", "hdr", "rayon"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "webp", "hdr", "tiff", "bmp", "rayon"] }
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 flate2 = "1.0"
 zip = { version = "9", default-features = false, features = ["deflate"] }

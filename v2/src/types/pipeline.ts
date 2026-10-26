@@ -144,7 +144,12 @@ export interface FbxFixPlan {
   /** Keep `<file>.fbx.bak` (default true). */
   backup?: boolean;
   dryRun?: boolean;
+  /** Extra folders searched by file name (up to 4 levels deep). */
   searchDirs?: string[];
+  /** Also search the FBX folder's parent and its direct subfolders (default true). */
+  searchParent?: boolean;
+  /** Rewrite unfound textures to `<subfolder>/<name>` instead of leaving them (default false). */
+  guessMissing?: boolean;
 }
 
 export interface FbxPathChange {
@@ -234,12 +239,41 @@ export interface BlenderProgress {
   message: string;
 }
 
-// ---------------------------------------------------------------- tools (Phase 3)
+// ---------------------------------------------------------------- previewer & tools
 
+/** ORM channel layout: R = AO, G = Roughness, B = Metallic (Unreal convention). */
 export interface OrmPackConfig {
-  roughnessPath?: string;
-  metallicPath?: string;
-  aoPath?: string;
+  roughnessPath?: string | null;
+  metallicPath?: string | null;
+  aoPath?: string | null;
   outputPath: string;
   format: "png" | "tga";
+  /** The roughness input is a gloss / smoothness map and gets inverted. */
+  roughnessFromGloss?: boolean;
+}
+
+export interface DuplicateGroup {
+  /** XXH3-128, hex. */
+  hash: string;
+  size: number;
+  files: string[];
+}
+
+export interface DuplicateReport {
+  /** Largest waste first. */
+  groups: DuplicateGroup[];
+  wastedBytes: number;
+  scannedFiles: number;
+  hashedFiles: number;
+  elapsedMs: number;
+  errors: string[];
+}
+
+export interface UnusedReport {
+  textures: AssetFile[];
+  reclaimableBytes: number;
+  totalTextures: number;
+  /** FBX / MTL / glTF / GLB files that were read. */
+  referenceFiles: number;
+  warnings: string[];
 }

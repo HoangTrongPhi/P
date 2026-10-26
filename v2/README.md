@@ -9,8 +9,8 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 |---|---|---|
 | 1 | Tauri scaffold, Studio Dark UI, navigation rail, header, `Ctrl+K` palette, log drawer, drag & drop | Done |
 | 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
-| 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder | Not started |
-| 4 | Tests and release build | Not started |
+| 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder, unused textures | Done (asset:// loading not yet confirmed in the desktop app) |
+| 4 | Tests and release build | Rust + IPC tests in place; release build not started |
 
 ## Prerequisites (Windows)
 
@@ -47,9 +47,14 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 | `apply_rename(folder, items)` | Re-checks, renames two-phase, records `.rename_history.json` |
 | `undo_last_rename(folder)` / `rename_history(folder)` | Undo stack |
 | `scan_fbx_files(paths, searchDirs?)` | Texture paths in FBX files / folders, classified and resolved |
-| `fix_fbx_paths(plan)` | `relative` / `strip` / `collect` fixes with `.fbx.bak` backup and dry run |
+| `fix_fbx_paths(plan)` | `relative` / `strip` / `collect` fixes with `.fbx.bak` backup and dry run; searches the parent folder, leaves unfound textures unchanged unless `guessMissing` |
 | `restore_fbx_backup(path)` | Restore from `.fbx.bak` |
 | `discover_blender()` / `run_blender_pack(config)` / `cancel_blender_pack()` | Headless Blender 5.x; progress on `blender://progress` |
+| `decode_image(path)` | PSD composite / TIFF → raw `width, height, RGBA8` bytes for the texture inspector |
+| `pack_orm_texture(config)` | R = AO, G = Roughness, B = Metallic → PNG / TGA (missing inputs: AO 1.0, roughness 0.5, metallic 0) |
+| `find_duplicate_assets(folder)` | Size pre-filter, then parallel XXH3-128 |
+| `find_unused_textures(folder)` | Textures no FBX / MTL / glTF / GLB references (.blend not inspected) |
+| `reveal_in_explorer(path)` / `ui_log(level, message)` | Show a file in Explorer; mirror UI log lines to stderr |
 
 Types for all of them are in `src/types/pipeline.ts`, wrappers in `src/lib/ipc.ts`.
 
