@@ -281,7 +281,10 @@ export function Viewport3D({ path }: { path: string }) {
       setStats(null);
       setMaterials(null);
     }
-    fbxTextureMap(path)
+    // Start on the next tick: StrictMode's throw-away mount is cancelled before it loads anything
+    // (a big model loaded twice at once can exhaust GPU memory).
+    new Promise<void>((resolve) => setTimeout(resolve, 0))
+      .then(() => (cancelled ? Promise.reject(new Error("superseded")) : fbxTextureMap(path)))
       .then((map) => (cancelled ? Promise.reject(new Error("superseded")) : viewer.load(path, map, { keepView })))
       .then((s) => {
         if (cancelled) return;

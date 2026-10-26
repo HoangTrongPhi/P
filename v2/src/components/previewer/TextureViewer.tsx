@@ -49,15 +49,17 @@ export function TextureViewer({ path }: { path: string }) {
     const keepView = loaded.current?.path === path && loaded.current.token !== reloadToken;
     setLoading(!keepView);
     setError(null);
-    engineRef.current!
-      .load(path, { keepView })
+    const engine = engineRef.current!;
+    // Next tick, so StrictMode's throw-away mount never decodes the image.
+    new Promise<void>((resolve) => setTimeout(resolve, 0))
+      .then(() => (cancelled ? Promise.reject(new Error("superseded")) : engine.load(path, { keepView })))
       .then((i) => {
         if (cancelled) return;
         loaded.current = { path, token: reloadToken };
         setInfo(i);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (cancelled) return; // also swallows the "superseded" rejection
         setInfo(null);
         setError(String(err));
         uiLog("error", `Cannot open ${path}: ${err}`);

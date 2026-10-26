@@ -271,6 +271,7 @@ export class TextureViewer {
     this.material.dispose();
     this.quad.geometry.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
   }
 }

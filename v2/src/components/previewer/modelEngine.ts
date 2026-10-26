@@ -149,14 +149,46 @@ function makeChecker(): THREE.Texture {
 }
 
 /**
- * Run a synchronous parse with every TextureLoader texture tagged with the URL it requested
- * (`userData.sourceUrl`). A failed image keeps no `src`, and the inspector still wants its name.
+ * Shrink a texture's image so its longest side is at most `max` pixels. Big asset libraries carry
+ * dozens of 4K maps; at full size they exhaust the WebView's GPU process, which takes the whole
+ * app down. Runs before the first upload, so only the small copy ever reaches the GPU.
  */
-function tagTextureUrls<T>(manager: THREE.LoadingManager, parse: () => T): T {
+function capTexture(t: THREE.Texture, max: number) {
+  const img = t.image as (CanvasImageSource & { width: number; height: number }) | null;
+  if (!img || !(img instanceof HTMLImageElement || img instanceof ImageBitmap || img instanceof HTMLCanvasElement)) return;
+  const scale = max / Math.max(img.width, img.height);
+  if (!(scale < 1)) return;
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.width * scale));
+  c.height = Math.max(1, Math.round(img.height * scale));
+  // A CPU-backed canvas: a GPU one would upload the full-size source to resize it, and keep its
+  // own copy in GPU memory next to the texture.
+  c.getContext("2d", { willReadFrequently: true })!.drawImage(img, 0, 0, c.width, c.height);
+  if (img instanceof ImageBitmap) img.close();
+  t.userData.originalSize = [img.width, img.height];
+  t.image = c;
+  t.needsUpdate = true;
+}
+
+/**
+ * Run a synchronous parse with every TextureLoader texture tagged with the URL it requested
+ * (`userData.sourceUrl`; a failed image keeps no `src`, and the inspector still wants its name)
+ * and capped to `maxSize` pixels once its image arrives.
+ */
+function tagTextureUrls<T>(manager: THREE.LoadingManager, maxSize: number, parse: () => T): T {
   const original = THREE.TextureLoader.prototype.load;
-  THREE.TextureLoader.prototype.load = function (this: THREE.TextureLoader, url, ...rest) {
-    const t = original.call(this, url, ...rest);
-    if (this.manager === manager) t.userData.sourceUrl = manager.resolveURL((this.path ?? "") + url);
+  THREE.TextureLoader.prototype.load = function (this: THREE.TextureLoader, url, onLoad, ...rest) {
+    if (this.manager !== manager) return original.call(this, url, onLoad, ...rest);
+    const t = original.call(
+      this,
+      url,
+      (tex) => {
+        capTexture(tex, maxSize);
+        onLoad?.(tex);
+      },
+      ...rest,
+    );
+    t.userData.sourceUrl = manager.resolveURL((this.path ?? "") + url);
     return t;
   };
   try {
@@ -164,6 +196,19 @@ function tagTextureUrls<T>(manager: THREE.LoadingManager, parse: () => T): T {
   } finally {
     THREE.TextureLoader.prototype.load = original;
   }
+}
+
+/** Free a model's GPU and image resources. */
+function disposeObject(root: THREE.Object3D) {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.geometry.dispose();
+    for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      for (const v of Object.values(m)) if (v instanceof THREE.Texture) v.dispose();
+      m.dispose();
+    }
+  });
 }
 
 const fmtUnits = (n: number) => (n >= 100 ? n.toFixed(0) : n >= 1 ? n.toFixed(2) : n.toPrecision(2));
@@ -307,8 +352,11 @@ export class ModelViewer {
     if (this.mixer) this.mixer.timeScale = scale;
   }
 
-  /** `keepView` keeps the camera where it is (a reload of the same file). */
-  async load(path: string, textureMap?: TextureMap, { keepView = false } = {}): Promise<ModelStats> {
+  /**
+   * `keepView` keeps the camera where it is (a reload of the same file); `maxTextureSize` caps
+   * every texture's longest side (full-size maps stay viewable in the texture inspector).
+   */
+  async load(path: string, textureMap?: TextureMap, { keepView = false, maxTextureSize = 2048 } = {}): Promise<ModelStats> {
     this.clear();
     const gen = ++this.generation;
     const ext = path.split(".").pop()!.toLowerCase();
@@ -373,10 +421,15 @@ export class ModelViewer {
       const gltf = await new GLTFLoader(manager).parseAsync(await res.arrayBuffer(), resourcePath);
       object = gltf.scene;
       animations = gltf.animations;
+      // parseAsync waits for the images, and nothing has been drawn yet.
+      object.traverse((o) => {
+        const mats = (o as THREE.Mesh).material;
+        if (mats) for (const m of Array.isArray(mats) ? mats : [mats]) for (const v of Object.values(m)) if (v instanceof THREE.Texture) capTexture(v, maxTextureSize);
+      });
       this.sourceOf = (t) => this.gltfSource(gltf, t, resourcePath, textureMap);
     } else if (ext === "fbx") {
       const data = await res.arrayBuffer();
-      object = tagTextureUrls(manager, () => new FBXLoader(manager).parse(data, resourcePath));
+      object = tagTextureUrls(manager, maxTextureSize, () => new FBXLoader(manager).parse(data, resourcePath));
       animations = object.animations;
       this.sourceOf = fromUrl;
     } else if (ext === "obj") {
@@ -387,7 +440,7 @@ export class ModelViewer {
         const mtlRes = await fetch(resolveResource(resourcePath + encodeURI(mtl.replace(/\\/g, "/"))));
         if (mtlRes.ok) {
           const materials = new MTLLoader(manager).setResourcePath(resourcePath).parse(await mtlRes.text(), resourcePath);
-          tagTextureUrls(manager, () => materials.preload());
+          tagTextureUrls(manager, maxTextureSize, () => materials.preload());
           obj.setMaterials(materials);
         } else {
           missing.add(basename(mtl));
@@ -399,7 +452,10 @@ export class ModelViewer {
       throw new Error(`Unsupported mesh format .${ext}`);
     }
     if (pending === 0) settle(); // nothing to fetch (or everything already arrived)
-    if (superseded()) throw new Error("superseded");
+    if (superseded()) {
+      disposeObject(object);
+      throw new Error("superseded");
+    }
 
     this.model = object;
     this.scene.add(object);
@@ -540,7 +596,8 @@ export class ModelViewer {
     // glTF is metres by definition; FBX states its unit (centimetres when it does not); OBJ has none.
     const metres = this.ext === "fbx" ? (largest * (unitScale ?? 1)) / 100 : largest;
     const unit = this.ext === "obj" ? "units (OBJ has no unit)" : "m";
-    if (metres > 50) out.push(`Largest side is ${fmtUnits(metres)} ${unit}: exported in centimetres or with a ×100 scale?`);
+    // 200 m: big enough for architecture, small enough to catch a ×100 character or prop.
+    if (metres > 200) out.push(`Largest side is ${fmtUnits(metres)} ${unit}: exported in centimetres or with a ×100 scale?`);
     else if (metres < 0.02) out.push(`Largest side is ${fmtUnits(metres)} ${unit}: very small, a ×0.01 scale applied twice?`);
     const gap = box.distanceToPoint(new THREE.Vector3());
     if (gap > largest * 0.5) out.push(`Pivot is ${fmtUnits(gap)} units away from the geometry`);
@@ -776,6 +833,8 @@ export class ModelViewer {
     this.studioEnv.dispose();
     this.disposeHdri();
     this.renderer.dispose();
+    // Release the WebGL context now rather than whenever it is garbage-collected.
+    this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
   }
 }

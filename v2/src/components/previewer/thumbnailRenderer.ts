@@ -27,7 +27,8 @@ async function render(path: string): Promise<Blob | null> {
   if (MESH_EXTS.includes(ext)) {
     models ??= new ModelViewer(offscreenHost());
     models.setGrid(false);
-    await models.load(path, await fbxTextureMap(path));
+    // Thumbnail-sized maps: full-size textures for a whole folder would exhaust GPU memory.
+    await models.load(path, await fbxTextureMap(path), { maxTextureSize: 128 });
     await models.whenSettled();
     canvas = models.capture({ pixelRatio: 1, transparent: true });
   } else {

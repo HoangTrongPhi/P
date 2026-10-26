@@ -16,13 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strength, exposure (±3 stops), key light direction / height / intensity, follow-camera, and
   environment as background. FBX / OBJ Phong materials only react to the lights.
 - **Pivot / axes and skeleton** toggles (skeleton only when the model has bones); stats gain bones
-  and the FBX file unit. Warnings for an odd scale (largest side > 50 m or < 2 cm, using the FBX
+  and the FBX file unit. Warnings for an odd scale (largest side > 200 m or < 2 cm, using the FBX
   `UnitScaleFactor`) and for a pivot far from the geometry.
 - **Thumbnail grid** (default; list view one click away). Thumbnails render off-screen when they
   scroll into view and are cached in IndexedDB by path + size + modification time. Clear now also
   empties this cache.
 - **Auto-reload**: the open file (and a model's textures) is polled; once a change has settled it
   reloads keeping the camera / zoom. Manual reload button next to the path.
+- **Fix: app closed on dropping a big model** (found with a 132 × 4K-texture hotel pack). The
+  WebView's GPU process ran out of memory (5.1 GB) and took the app down without a log line.
+  Textures are now capped before upload (2048 px in the viewport, 128 px for thumbnails; the
+  texture inspector still opens the full file), resized on a CPU canvas, StrictMode's throw-away
+  mount no longer loads the model a second time, superseded loads are disposed, and viewers
+  release their WebGL context on unmount. Same file now peaks at about 1 GB.
 - **Save view as PNG** (camera button): 2× resolution, transparent background, no grid. Needs the
   new `fs:allow-write-file` permission, scoped to `*.png`.
 
