@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use crate::core::renamer::{build_plan, compile_rules, execute_plan, plan_from_pairs, undo_last, RenameRow, RuleSpec, Status};
 use crate::core::scanner::{normalize_exts, scan};
@@ -79,7 +79,7 @@ pub async fn dry_run_rename(folder: String, rules: RenameConfig) -> Result<Vec<R
 }
 
 #[tauri::command]
-pub async fn apply_rename(app: AppHandle, folder: String, items: Vec<RenameAction>) -> Result<RenameResult, String> {
+pub async fn apply_rename<R: Runtime>(app: AppHandle<R>, folder: String, items: Vec<RenameAction>) -> Result<RenameResult, String> {
     let result = blocking(move || {
         let history = history_for(&folder)?;
         let pairs: Vec<(PathBuf, PathBuf)> = items.iter().map(|a| (PathBuf::from(&a.original_path), PathBuf::from(&a.target_path))).collect();
@@ -95,7 +95,7 @@ pub async fn apply_rename(app: AppHandle, folder: String, items: Vec<RenameActio
 }
 
 #[tauri::command]
-pub async fn undo_last_rename(app: AppHandle, folder: String) -> Result<UndoResult, String> {
+pub async fn undo_last_rename<R: Runtime>(app: AppHandle<R>, folder: String) -> Result<UndoResult, String> {
     let result = blocking(move || {
         let history = history_for(&folder)?;
         let tx = undo_last(&history).map_err(|e| e.to_string())?;

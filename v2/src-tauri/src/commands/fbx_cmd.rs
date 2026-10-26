@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use crate::core::fbx::{fix_fbx, restore_backup, scan_fbx, FbxFileInfo, FixOptions, FixReport};
 use crate::core::scanner::{normalize_exts, scan};
@@ -40,7 +40,7 @@ fn expand_fbx(paths: &[String]) -> Vec<PathBuf> {
 }
 
 #[tauri::command]
-pub async fn scan_fbx_files(app: AppHandle, paths: Vec<String>, search_dirs: Option<Vec<String>>) -> Result<Vec<FbxFileInfo>, String> {
+pub async fn scan_fbx_files<R: Runtime>(app: AppHandle<R>, paths: Vec<String>, search_dirs: Option<Vec<String>>) -> Result<Vec<FbxFileInfo>, String> {
     let infos = tauri::async_runtime::spawn_blocking(move || {
         let search: Vec<PathBuf> = search_dirs.unwrap_or_default().into_iter().map(PathBuf::from).collect();
         expand_fbx(&paths).par_iter().map(|p| scan_fbx(p, &search).unwrap_or_else(|e| FbxFileInfo::failed(p, e))).collect::<Vec<_>>()
@@ -56,7 +56,7 @@ pub async fn scan_fbx_files(app: AppHandle, paths: Vec<String>, search_dirs: Opt
 }
 
 #[tauri::command]
-pub async fn fix_fbx_paths(app: AppHandle, plan: FbxFixPlan) -> Result<FbxFixResult, String> {
+pub async fn fix_fbx_paths<R: Runtime>(app: AppHandle<R>, plan: FbxFixPlan) -> Result<FbxFixResult, String> {
     let result = tauri::async_runtime::spawn_blocking(move || {
         let outcomes: Vec<_> = expand_fbx(&plan.paths).into_par_iter().map(|p| (fix_fbx(&p, &plan.options), p)).collect();
         let mut result = FbxFixResult { reports: vec![], errors: vec![] };
@@ -85,7 +85,7 @@ pub async fn fix_fbx_paths(app: AppHandle, plan: FbxFixPlan) -> Result<FbxFixRes
 }
 
 #[tauri::command]
-pub async fn restore_fbx_backup(app: AppHandle, path: String) -> Result<bool, String> {
+pub async fn restore_fbx_backup<R: Runtime>(app: AppHandle<R>, path: String) -> Result<bool, String> {
     let restored = restore_backup(Path::new(&path)).map_err(|e| e.to_string())?;
     let msg = if restored { format!("Restored {path} from backup") } else { format!("No backup found for {path}") };
     logbus::emit(&app, if restored { Level::Info } else { Level::Warn }, "fbx", msg);

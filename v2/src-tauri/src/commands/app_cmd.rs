@@ -15,7 +15,7 @@ pub struct AppInfo {
 }
 
 #[tauri::command]
-pub fn app_info(app: tauri::AppHandle) -> AppInfo {
+pub fn app_info<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppInfo {
     let pkg = app.package_info();
     AppInfo {
         name: pkg.name.clone(),

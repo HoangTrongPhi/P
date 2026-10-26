@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use crate::core::blender_runner::{best_blender, discover_blenders, run_pack, BlenderInstall, PackOptions, PackResult, RunHooks, DEFAULT_TIMEOUT};
 use crate::utils::logbus::{self, Level};
@@ -35,7 +35,7 @@ struct ProgressPayload {
     message: String,
 }
 
-fn script_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn script_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     if let Ok(p) = app.path().resolve(SCRIPT_RESOURCE, BaseDirectory::Resource) {
         if p.is_file() {
             return Ok(p);
@@ -50,7 +50,7 @@ fn script_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub async fn discover_blender(app: AppHandle) -> Result<Vec<BlenderInstall>, String> {
+pub async fn discover_blender<R: Runtime>(app: AppHandle<R>) -> Result<Vec<BlenderInstall>, String> {
     let installs = tauri::async_runtime::spawn_blocking(discover_blenders).await.map_err(|e| e.to_string())?;
     let list = installs.iter().map(|b| b.version_string.as_str()).collect::<Vec<_>>().join(", ");
     logbus::emit(&app, Level::Info, "blender", format!("Found {} Blender install(s): {list}", installs.len()));
@@ -58,7 +58,7 @@ pub async fn discover_blender(app: AppHandle) -> Result<Vec<BlenderInstall>, Str
 }
 
 #[tauri::command]
-pub async fn run_blender_pack(app: AppHandle, job: State<'_, BlenderJob>, config: BlenderPackConfig) -> Result<PackResult, String> {
+pub async fn run_blender_pack<R: Runtime>(app: AppHandle<R>, job: State<'_, BlenderJob>, config: BlenderPackConfig) -> Result<PackResult, String> {
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut slot = job.0.lock().map_err(|e| e.to_string())?;
@@ -100,7 +100,7 @@ pub async fn run_blender_pack(app: AppHandle, job: State<'_, BlenderJob>, config
 }
 
 #[tauri::command]
-pub fn cancel_blender_pack(app: AppHandle, job: State<'_, BlenderJob>) -> bool {
+pub fn cancel_blender_pack<R: Runtime>(app: AppHandle<R>, job: State<'_, BlenderJob>) -> bool {
     let running = job.0.lock().ok().and_then(|s| s.clone());
     match running {
         Some(flag) => {

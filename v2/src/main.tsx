@@ -1,3 +1,5 @@
+// Must run before anything reads `isTauri()`; a no-op outside `npm run dev` with `?mock`.
+import "./dev/mockBackend";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";

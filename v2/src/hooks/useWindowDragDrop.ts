@@ -1,6 +1,7 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect } from "react";
 import { refreshAssetCount } from "../lib/assets";
+import { routeDrop } from "../lib/dropRouter";
 import { inTauri } from "../lib/ipc";
 import { uiLog, useAppStore } from "../stores/appStore";
 import type { TabId } from "../types/pipeline";
@@ -22,8 +23,10 @@ function handleDrop(paths: string[]) {
   s.setDragActive(false);
   if (!paths.length) return;
   s.setDroppedPaths(paths);
-  s.setActiveTab(tabForDrop(paths, s.activeTab));
+  const tab = tabForDrop(paths, s.activeTab);
+  s.setActiveTab(tab);
   uiLog("info", `Dropped ${paths.length === 1 ? paths[0] : `${paths.length} items`}`);
+  if (inTauri) routeDrop(tab, paths);
   void refreshAssetCount(paths);
 }
 

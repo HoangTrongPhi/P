@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 /// Event name; keep in sync with `EVENTS.log` in `src/lib/ipc.ts`.
 pub const LOG_EVENT: &str = "log://entry";
@@ -52,7 +52,7 @@ impl LogBus {
     }
 }
 
-pub fn emit(app: &AppHandle, level: Level, source: &str, message: impl Into<String>) {
+pub fn emit<R: Runtime>(app: &AppHandle<R>, level: Level, source: &str, message: impl Into<String>) {
     let entry = LogEntry {
         ts_ms: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0),
         level,

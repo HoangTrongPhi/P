@@ -4,12 +4,15 @@ mod commands;
 pub mod core;
 pub mod utils;
 
+#[cfg(test)]
+mod ipc_tests;
+
+use tauri::{Builder, Runtime};
 use utils::logbus::{self, Level, LogBus};
 
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
+/// State, startup hook and IPC commands, shared by the real app and the IPC tests.
+fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+    builder
         .manage(LogBus::default())
         .manage(commands::blender_cmd::BlenderJob::default())
         .setup(|app| {
@@ -37,6 +40,10 @@ pub fn run() {
             commands::blender_cmd::run_blender_pack,
             commands::blender_cmd::cancel_blender_pack,
         ])
+}
+
+pub fn run() {
+    configure(Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_fs::init()))
         .run(tauri::generate_context!())
         .expect("error while running Project P");
 }

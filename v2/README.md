@@ -8,7 +8,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Tauri scaffold, Studio Dark UI, navigation rail, header, `Ctrl+K` palette, log drawer, drag & drop | Done |
-| 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands | Engines and commands done; module tab UIs still placeholders |
+| 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
 | 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder | Not started |
 | 4 | Tests and release build | Not started |
 
@@ -25,6 +25,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 npm install
 npm run tauri dev      # desktop app with hot reload
 npm run dev            # UI only in a browser (backend calls disabled)
+                       # open http://localhost:1420/?mock for a fake backend with sample data
 npm run build          # typecheck and bundle the frontend
 npm run tauri build    # release installer (NSIS / MSI)
 cargo test --manifest-path src-tauri/Cargo.toml

@@ -1,0 +1,174 @@
+/**
+ * Dev-only fake backend so the UI can be exercised in a plain browser: open
+ * `http://localhost:1420/?mock`. Never active in production builds or inside Tauri.
+ */
+import { emit } from "@tauri-apps/api/event";
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import type { FbxFileInfo, RenameRow, RenameRuleSpec } from "../types/pipeline";
+
+const ROOT = "D:\\Assets\\Props";
+const FILES = [
+  "chair.fbx", "hero_skel.fbx", "SM_Rock.obj", "wood_planks_basecolor.png", "wood_planks_normal.png",
+  "rock01_Roughness.tga", "crate_ORM.png", "T_Crate_D.png", "metal-plate_nrm.png", "poster.psd", "a.png", "b.png",
+];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Rough stand-in for the Rust rules, good enough to see the table react. */
+function fakeRename(name: string, rules: RenameRuleSpec[]): string {
+  const dot = name.lastIndexOf(".");
+  let stem = name.slice(0, dot);
+  const ext = name.slice(dot);
+  for (const r of rules) {
+    if (r.kind === "prefix" && !stem.startsWith(r.prefix)) stem = r.prefix + stem;
+    if (r.kind === "suffix" && !stem.endsWith(r.suffix)) stem += r.suffix;
+    if (r.kind === "searchReplace" && r.find) stem = stem.split(r.find).join(r.replace ?? "");
+    if (r.kind === "case" && r.style === "upper") stem = stem.toUpperCase();
+    if (r.kind === "preset" && r.preset === "ue5") {
+      const map: Record<string, string> = {
+        chair: "SM_Chair", hero_skel: "SK_Hero", wood_planks_basecolor: "T_WoodPlanks_D", wood_planks_normal: "T_WoodPlanks_N",
+        rock01_Roughness: "T_Rock_01_R", "metal-plate_nrm": "T_MetalPlate_N", poster: "T_Poster", a: "T_Same", b: "T_Same",
+      };
+      stem = map[stem] ?? stem;
+    }
+  }
+  return stem + ext;
+}
+
+function dryRun(rules: RenameRuleSpec[]): RenameRow[] {
+  const rows = FILES.map((f) => {
+    const newName = fakeRename(f, rules);
+    return { originalPath: `${ROOT}\\${f}`, originalName: f, newName, targetPath: `${ROOT}\\${newName}`, status: newName === f ? "Skipped" : "OK" } as RenameRow;
+  });
+  for (const r of rows) {
+    if (r.status === "OK" && rows.filter((o) => o.newName === r.newName).length > 1) Object.assign(r, { status: "Collision", reason: "Several files map to this name" });
+    if (r.newName.includes("/")) Object.assign(r, { status: "Invalid", reason: "Contains invalid characters" });
+  }
+  rows.filter((r) => r.status === "Skipped").forEach((r) => (r.reason = "Name unchanged"));
+  return rows;
+}
+
+let fixed = false;
+function fbxFiles(): FbxFileInfo[] {
+  const abs = (n: string) => `C:\\Users\\John\\Textures\\${n}`;
+  const entry = (owner: string, field: string, path: string, ok: boolean) => ({
+    nodeName: owner,
+    propertyName: field,
+    originalPath: ok ? `textures/${path.split("\\").pop()}` : path,
+    resolvedPath: `${ROOT}\\textures\\${path.split("\\").pop()}`,
+    kind: ok ? "RELATIVE_PORTABLE" : "ABSOLUTE_LOCAL",
+    existsOnDisk: true,
+    resolution: ok ? "found" : "found_by_name",
+    embedded: false,
+    isProblem: !ok,
+  }) as FbxFileInfo["entries"][number];
+  const crate = ["P:Path", "Filename", "RelativeFilename"].map((f) => entry("Video::crate_diffuse", f, abs("crate_diffuse.png"), fixed));
+  crate.push(entry("Texture::crate_diffuse", "FileName", abs("crate_diffuse.png"), fixed));
+  return [
+    { path: `${ROOT}\\crate.fbx`, version: 7400, isBinary: true, entries: crate, hasIssues: !fixed, problemCount: fixed ? 0 : 4 },
+    {
+      path: `${ROOT}\\hero.fbx`,
+      version: 7700,
+      isBinary: true,
+      entries: [
+        { ...entry("Video::hero_N", "RelativeFilename", "\\\\nas\\share\\hero_N.png", false), kind: "UNC_NETWORK", resolution: "missing", resolvedPath: null, existsOnDisk: false },
+      ],
+      hasIssues: true,
+      problemCount: 1,
+    },
+    { path: `${ROOT}\\rock.fbx`, version: 7400, isBinary: false, entries: [entry("Texture::rock", "RelativeFilename", "rock.png", true)], hasIssues: false, problemCount: 0 },
+    { path: `${ROOT}\\broken.fbx`, version: 0, isBinary: false, entries: [], hasIssues: true, problemCount: 0, error: "Node end offset beyond file size (truncated file?)" },
+  ];
+}
+
+if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
+  (globalThis as { isTauri?: boolean }).isTauri = true;
+  mockWindows("main");
+  mockIPC(
+    async (cmd, args) => {
+      const a = (args ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+      switch (cmd) {
+        case "app_info":
+          return { name: "project-p", version: "2.0.0-mock", tauriVersion: "2.x", os: "windows", arch: "x86_64", debug: true };
+        case "log_history":
+          return [{ tsMs: Date.now(), level: "info", source: "app", message: "Mock backend active (?mock)" }];
+        case "plugin:fs|stat":
+          return { isDirectory: !/\.\w+$/.test(a.path), isFile: /\.\w+$/.test(a.path), size: 0 };
+        case "plugin:dialog|open": {
+          const o = a.options ?? {};
+          if (o.directory) return ROOT;
+          const ext = o.filters?.[0]?.extensions?.[0];
+          if (ext === "blend") return [`${ROOT}\\scene\\crate.blend`];
+          if (ext === "exe") return "C:\\Tools\\blender\\blender.exe";
+          return [`${ROOT}\\crate.fbx`, `${ROOT}\\hero.fbx`];
+        }
+        case "plugin:dialog|save":
+          return a.options?.defaultPath ?? `${ROOT}\\out.zip`;
+        case "scan_directory":
+          return { root: a.path, files: FILES.map((f) => ({ path: `${ROOT}\\${f}`, name: f, size: 1024, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 3, errors: [] };
+        case "dry_run_rename":
+          await sleep(120);
+          return dryRun(a.rules.rules);
+        case "apply_rename":
+          return { transactionId: "mock", renamed: a.items.length, rejected: [] };
+        case "rename_history":
+          return [{ id: "mock", timestamp: Date.now() / 1000 - 60, count: 3 }];
+        case "undo_last_rename":
+          return { transactionId: "mock", restored: 3 };
+        case "scan_fbx_files":
+          await sleep(200);
+          return fbxFiles();
+        case "fix_fbx_paths": {
+          const plan = a.plan;
+          const reports = plan.paths.map((p: string) => ({
+            path: p,
+            changes: p.endsWith("crate.fbx")
+              ? ["P:Path", "Filename", "RelativeFilename", "FileName"].map((f) => ({ field: f, owner: "Video::crate_diffuse", old: "C:\\Users\\John\\Textures\\crate_diffuse.png", new: plan.mode === "strip" ? "crate_diffuse.png" : `${plan.subfolder ?? "textures"}/crate_diffuse.png` }))
+              : [{ field: "RelativeFilename", owner: "Video::hero_N", old: "\\\\nas\\share\\hero_N.png", new: "textures/hero_N.png" }],
+            copied: plan.mode === "collect" ? [{ from: "C:\\x", to: "y" }] : [],
+            warnings: p.endsWith("hero.fbx") ? ["hero_N.png: texture missing, guessed 'textures/hero_N.png'"] : [],
+            backup: plan.dryRun ? null : `${p}.bak`,
+            written: !plan.dryRun,
+            dryRun: !!plan.dryRun,
+          }));
+          if (!plan.dryRun) fixed = true;
+          return { reports, errors: [] };
+        }
+        case "restore_fbx_backup":
+          fixed = false;
+          return true;
+        case "discover_blender":
+          await sleep(300);
+          return [
+            { executable: "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe", version: [5, 2, 2], versionString: "5.2.2", supported: true },
+            { executable: "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe", version: [5, 1, 0], versionString: "5.1.0", supported: true },
+          ];
+        case "run_blender_pack": {
+          const steps = ["Analysing dependencies", "Consolidating 1 file", "Making paths relative", "Saving"];
+          for (let i = 0; i < steps.length; i++) {
+            await emit("blender://progress", { done: i + 1, total: steps.length, message: steps[i] });
+            await sleep(450);
+          }
+          const dep = { name: "crate_diffuse", type: "images", filepath: "//textures/crate_diffuse.png", abspath: "D:\\Assets\\Props\\scene_packed\\textures\\crate_diffuse.png", exists: true, packed: false, relative: true };
+          const missing = { name: "decal_mask", type: "images", filepath: "C:\\old\\decal_mask.png", abspath: "C:\\old\\decal_mask.png", exists: false, packed: false, relative: false };
+          return {
+            ok: true,
+            report: { ok: true, blend: a.config.options?.output ?? a.config.blendFile, blender_version: "5.2.2", after: [dep, missing], missing: [missing], steps },
+            returncode: 0,
+            outputLines: [],
+            archive: a.config.options?.zipArchive ?? null,
+            cancelled: false,
+            error: null,
+          };
+        }
+        case "cancel_blender_pack":
+          return true;
+        default:
+          if (cmd.startsWith("plugin:event|")) return 0;
+          console.warn("mockBackend: unhandled", cmd, args);
+          return null;
+      }
+    },
+    { shouldMockEvents: true },
+  );
+}

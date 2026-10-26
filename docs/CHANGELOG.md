@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### V2 migration — module UIs and IPC tests
+- Renamer, FBX Doctor and Blender Packer tabs wired to the Phase 2 commands (live dry-run table,
+  rule builder, preview-then-fix, Blender progress and report). Drops and dialogs route to the tab.
+- `npm run dev` + `?mock` serves a fake backend for UI work in a plain browser (dev builds only).
+- `src-tauri/src/ipc_tests.rs`: the real command set on Tauri's mock runtime, invoked with the same
+  JSON the frontend stores send — renamer (scan, dry run, apply, history, undo, stale-plan refusal),
+  FBX doctor (scan, preview, fix with backup and collect, restore) and Blender (discover, pack with
+  progress events and zip, analyse-only, errors). 40 Rust tests in total.
+- Commands are generic over the Tauri runtime; `build.rs` embeds the Common-Controls manifest via the
+  linker so Windows test binaries start (tauri-build alone only covers the app binary).
+
 ### V2 migration (Tauri 2 + Rust) — Phase 2: core Rust engines
 - `core::scanner`: walkdir traversal with parallel metadata reads (rayon), extension filters, skips
   VCS / cache folders.

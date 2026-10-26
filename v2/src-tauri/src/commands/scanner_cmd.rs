@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use crate::core::scanner::{normalize_exts, scan, ScanSummary};
 use crate::utils::logbus::{self, Level};
 
 #[tauri::command]
-pub async fn scan_directory(app: AppHandle, path: String, recursive: bool, filters: Vec<String>) -> Result<ScanSummary, String> {
+pub async fn scan_directory<R: Runtime>(app: AppHandle<R>, path: String, recursive: bool, filters: Vec<String>) -> Result<ScanSummary, String> {
     let root = PathBuf::from(&path);
     if !root.exists() {
         return Err(format!("Path not found: {path}"));
