@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: core IPC, native dialogs and read access to user-chosen asset paths.",
+  "description": "Main window: core IPC, native dialogs, read access to user-chosen asset paths and PNG writes (viewport capture).",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -22,6 +22,10 @@
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**/*.png" }, { "path": "**/*.PNG" }]
     }
   ]
 }

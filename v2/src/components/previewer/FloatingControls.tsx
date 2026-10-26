@@ -29,3 +29,23 @@ export function StatRow({ label, value }: { label: string; value: ReactNode }) {
     </div>
   );
 }
+
+/** Labelled range input; double-click resets. */
+export function Slider({ label, value, min, max, step, onChange, onReset, format }: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  onReset: () => void;
+  format: (v: number) => string;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-[11.5px] text-ink-muted" onDoubleClick={onReset} title="Double-click to reset">
+      <span className="w-16 shrink-0">{label}</span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-28 accent-accent" />
+      <span className="w-10 text-right font-mono text-ink tabular-nums">{format(value)}</span>
+    </label>
+  );
+}

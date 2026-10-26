@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Asset Previewer — inspection features
+- **Material inspector** (palette button): every material with its texture slots (base color,
+  normal, roughness, metalness, AO, emissive, …), embedded / missing marked; a found texture opens
+  in the texture inspector with a "Back" button to the model. Works for FBX, OBJ + MTL and glTF.
+- **Lighting panel**: environment Studio / None / any HDR or EXR (from the folder or browsed), env
+  strength, exposure (±3 stops), key light direction / height / intensity, follow-camera, and
+  environment as background. FBX / OBJ Phong materials only react to the lights.
+- **Pivot / axes and skeleton** toggles (skeleton only when the model has bones); stats gain bones
+  and the FBX file unit. Warnings for an odd scale (largest side > 50 m or < 2 cm, using the FBX
+  `UnitScaleFactor`) and for a pivot far from the geometry.
+- **Thumbnail grid** (default; list view one click away). Thumbnails render off-screen when they
+  scroll into view and are cached in IndexedDB by path + size + modification time. Clear now also
+  empties this cache.
+- **Auto-reload**: the open file (and a model's textures) is polled; once a change has settled it
+  reloads keeping the camera / zoom. Manual reload button next to the path.
+- **Save view as PNG** (camera button): 2× resolution, transparent background, no grid. Needs the
+  new `fs:allow-write-file` permission, scoped to `*.png`.
+
 ### V2 migration — Phase 3: previewer and pipeline tools
 - **Asset Previewer**: Three.js viewport for FBX, OBJ (+MTL), glTF and GLB loaded through `asset://`
   (absolute and relative texture paths resolved, TGA / DDS textures), studio lighting, scaled ground

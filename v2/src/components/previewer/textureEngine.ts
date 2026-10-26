@@ -149,7 +149,8 @@ export class TextureViewer {
     this.resize();
   }
 
-  async load(path: string): Promise<TextureInfo> {
+  /** `keepView` keeps pan and zoom when the image size is unchanged (a reload of the same file). */
+  async load(path: string, { keepView = false } = {}): Promise<TextureInfo> {
     const ext = path.split(".").pop()!.toLowerCase();
     const loaded = await loadTexture(path, ext);
     this.texture?.dispose();
@@ -158,13 +159,15 @@ export class TextureViewer {
     t.magFilter = THREE.NearestFilter; // crisp pixels when zoomed in
     t.needsUpdate = true;
     this.texture = t;
+    const sameSize = this.size.w === loaded.width && this.size.h === loaded.height;
     this.size = { w: loaded.width, h: loaded.height };
     this.material.uniforms.map.value = t;
     this.material.uniforms.srgb.value = loaded.srgb;
     this.material.uniforms.flipY.value = loaded.topDown;
     this.quad.scale.set(loaded.width, loaded.height, 1);
     this.quad.visible = true;
-    this.fit();
+    if (keepView && sameSize) this.render();
+    else this.fit();
     return { width: loaded.width, height: loaded.height, isFloat: !loaded.srgb, format: ext.toUpperCase() };
   }
 
@@ -247,6 +250,16 @@ export class TextureViewer {
   private render() {
     cancelAnimationFrame(this.frame);
     this.frame = requestAnimationFrame(() => this.renderer.render(this.scene, this.camera));
+  }
+
+  /** Draw the current view now and copy it into a 2D canvas (the WebGL buffer is not kept). */
+  capture(): HTMLCanvasElement {
+    this.renderer.render(this.scene, this.camera);
+    const out = document.createElement("canvas");
+    out.width = this.renderer.domElement.width;
+    out.height = this.renderer.domElement.height;
+    out.getContext("2d")!.drawImage(this.renderer.domElement, 0, 0);
+    return out;
   }
 
   dispose() {

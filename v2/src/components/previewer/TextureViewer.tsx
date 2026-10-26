@@ -1,9 +1,11 @@
 import { Loader2, Maximize, Scan } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { uiLog } from "../../stores/appStore";
+import { usePreviewStore } from "../../stores/previewStore";
 import { Segmented } from "../ui/Controls";
-import { FloatingPanel, HudButton, StatRow } from "./FloatingControls";
+import { FloatingPanel, HudButton, Slider, StatRow } from "./FloatingControls";
 import { TextureViewer as Engine, type Channel, type TextureInfo } from "./textureEngine";
+import { useFileWatch } from "./useFileWatch";
 
 const CHANNELS: { value: Channel; label: string }[] = [
   { value: "rgba", label: "RGBA" },
@@ -13,25 +15,6 @@ const CHANNELS: { value: Channel; label: string }[] = [
   { value: "g", label: "G" },
   { value: "b", label: "B" },
 ];
-
-function Slider({ label, value, min, max, step, onChange, onReset, format }: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-  onReset: () => void;
-  format: (v: number) => string;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-[11.5px] text-ink-muted" onDoubleClick={onReset} title="Double-click to reset">
-      <span className="w-14">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-28 accent-accent" />
-      <span className="w-10 text-right font-mono text-ink tabular-nums">{format(value)}</span>
-    </label>
-  );
-}
 
 /** 2D texture / HDR inspector with exposure, gamma and channel isolation. */
 export function TextureViewer({ path }: { path: string }) {
@@ -55,13 +38,24 @@ export function TextureViewer({ path }: { path: string }) {
     };
   }, []);
 
+  const reloadToken = usePreviewStore((s) => s.reloadToken);
+  const autoReload = usePreviewStore((s) => s.autoReload);
+  const loaded = useRef<{ path: string; token: number } | null>(null);
+  useFileWatch([path], usePreviewStore.getState().reload, autoReload);
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // Same file with a new token = a reload: keep pan and zoom (StrictMode mounts twice).
+    const keepView = loaded.current?.path === path && loaded.current.token !== reloadToken;
+    setLoading(!keepView);
     setError(null);
     engineRef.current!
-      .load(path)
-      .then((i) => !cancelled && setInfo(i))
+      .load(path, { keepView })
+      .then((i) => {
+        if (cancelled) return;
+        loaded.current = { path, token: reloadToken };
+        setInfo(i);
+      })
       .catch((err) => {
         if (cancelled) return;
         setInfo(null);
@@ -72,7 +66,7 @@ export function TextureViewer({ path }: { path: string }) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, reloadToken]);
 
   useEffect(() => engineRef.current?.setParams({ exposure, gamma, channel }), [exposure, gamma, channel]);
 

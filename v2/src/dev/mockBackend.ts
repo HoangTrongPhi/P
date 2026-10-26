@@ -130,10 +130,13 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           const ext = o.filters?.[0]?.extensions?.[0];
           if (o.filters?.[0]?.name === "Assets") return [`${PREVIEW_ROOT}/crate.glb`];
           if (o.filters?.[0]?.name === "Textures") return `${PREVIEW_ROOT}/textures/rock01_Roughness.png`;
+          if (o.filters?.[0]?.name === "HDRI") return `${PREVIEW_ROOT}/textures/sky_studio.hdr`;
           if (ext === "blend") return [`${ROOT}\\scene\\crate.blend`];
           if (ext === "exe") return "C:\\Tools\\blender\\blender.exe";
           return [`${ROOT}\\crate.fbx`, `${ROOT}\\hero.fbx`];
         }
+        case "plugin:fs|write_file":
+          return null;
         case "plugin:dialog|save":
           return a.options?.defaultPath ?? `${ROOT}\\out.zip`;
         case "scan_directory":
