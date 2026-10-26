@@ -1,0 +1,45 @@
+import { CommandPalette } from "./components/layout/CommandPalette";
+import { HeaderDashboard } from "./components/layout/HeaderDashboard";
+import { LogDrawer } from "./components/layout/LogDrawer";
+import { NavigationRail } from "./components/layout/NavigationRail";
+import { BlenderTab } from "./components/tabs/BlenderTab";
+import { FbxDoctorTab } from "./components/tabs/FbxDoctorTab";
+import { PreviewTab } from "./components/tabs/PreviewTab";
+import { RenamerTab } from "./components/tabs/RenamerTab";
+import { ToolsTab } from "./components/tabs/ToolsTab";
+import { useBackendBridge } from "./hooks/useBackendBridge";
+import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
+import { useWindowDragDrop } from "./hooks/useWindowDragDrop";
+import { useAppStore } from "./stores/appStore";
+import type { TabId } from "./types/pipeline";
+
+const TABS: Record<TabId, () => React.JSX.Element> = {
+  renamer: RenamerTab,
+  fbx: FbxDoctorTab,
+  blender: BlenderTab,
+  preview: PreviewTab,
+  tools: ToolsTab,
+};
+
+export default function App() {
+  useBackendBridge();
+  useGlobalHotkeys();
+  useWindowDragDrop();
+
+  const activeTab = useAppStore((s) => s.activeTab);
+  const ActiveTab = TABS[activeTab];
+
+  return (
+    <div className="flex h-full">
+      <NavigationRail />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <HeaderDashboard />
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <ActiveTab />
+        </main>
+        <LogDrawer />
+      </div>
+      <CommandPalette />
+    </div>
+  );
+}

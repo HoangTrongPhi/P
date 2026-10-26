@@ -1,0 +1,42 @@
+[package]
+name = "project-p"
+version = "2.0.0-alpha.1"
+description = "Project P — 3D Asset Toolkit & Doctor"
+authors = ["Phineas"]
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "project_p_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Core engines (Phase 2+)
+rayon = "1.10"
+walkdir = "2.5"
+regex = "1.10"
+byteorder = "1.5"
+# Only the codecs the toolkit reads/writes, to keep the binary small.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "webp", "hdr", "rayon"] }
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+flate2 = "1.0"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
