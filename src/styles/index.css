@@ -1,0 +1,151 @@
+@import "tailwindcss";
+/* Bundled fonts (Settings → Font); loaded only when picked. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/500.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+
+/* Studio Dark palette — ARCHITECTURE.md §2.2. Studio Light below; settingsStore sets data-theme. */
+@theme {
+  --color-canvas: #0f1115;
+  --color-panel: #161920;
+  --color-panel-raised: #1d222c;
+  --color-panel-hover: #242a36;
+  --color-edge: rgba(255, 255, 255, 0.08);
+  --color-edge-strong: rgba(255, 255, 255, 0.14);
+  /* Hover / zebra overlays (`bg-tint/5`): white on dark, slate on light. */
+  --color-tint: #ffffff;
+
+  --color-ink: #e6e8ee;
+  --color-ink-muted: #9aa1b0;
+  --color-ink-faint: #646b7a;
+
+  --color-accent: #3b82f6;
+  --color-amber: #f59e0b;
+  --color-emerald: #10b981;
+  --color-rose: #ef4444;
+
+  /* Dashboard asset-type series (categorical slots 1-4, dark steps; validated on --color-panel). */
+  --color-viz-mesh: #3987e5;
+  --color-viz-texture: #d95926;
+  --color-viz-scene: #199e70;
+  --color-viz-source: #c98500;
+
+  /* About dialog: the blueprint look of the author's portfolio site. */
+  --color-blueprint: #5ec8ff;
+  --color-blueprint-deep: #07142a;
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  --animate-fade-in: fade-in 120ms ease-out;
+  --animate-pop-in: pop-in 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+/* Studio Light: same roles, darker accents for contrast on white panels. The 3D viewport stays dark. */
+:root[data-theme="light"] {
+  --color-canvas: #eef0f4;
+  --color-panel: #ffffff;
+  --color-panel-raised: #f5f6f9;
+  --color-panel-hover: #e9ecf1;
+  --color-edge: rgba(15, 23, 42, 0.1);
+  --color-edge-strong: rgba(15, 23, 42, 0.2);
+  --color-tint: #0f172a;
+
+  --color-ink: #1a1e26;
+  --color-ink-muted: #4d5465;
+  --color-ink-faint: #737b8c;
+
+  --color-accent: #2563eb;
+  --color-amber: #b45309;
+  --color-emerald: #047857;
+  --color-rose: #dc2626;
+
+  --color-viz-mesh: #2f74d0;
+  --color-viz-texture: #c2491b;
+  --color-viz-scene: #13845d;
+  --color-viz-source: #a86f00;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    font-size: 13px;
+    overflow: hidden;
+    user-select: none;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  kbd {
+    @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-edge-strong bg-tint/5 px-1 font-sans text-[10px] font-medium text-ink-muted;
+  }
+  /* Thin studio scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-edge-strong) transparent;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-7 items-center gap-1.5 rounded-md border border-edge bg-panel-raised px-2.5 text-[12px] font-medium text-ink transition-colors hover:border-edge-strong hover:bg-panel-hover active:translate-y-px disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply border-accent/60 bg-accent text-white hover:border-accent hover:bg-accent/90;
+  }
+  .icon-btn {
+    @apply grid size-7 place-items-center rounded-md text-ink-muted transition-colors hover:bg-tint/6 hover:text-ink;
+  }
+}
+
+/* About dialog hero: a blueprint grid and a wireframe that draws itself in. */
+.blueprint-grid {
+  background-color: var(--color-blueprint-deep);
+  background-image:
+    radial-gradient(ellipse at 30% 40%, color-mix(in srgb, var(--color-blueprint) 22%, transparent), transparent 65%),
+    linear-gradient(color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px, 22px 22px;
+}
+.blueprint-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: blueprint-draw 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.blueprint-glow {
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color-blueprint) 55%, transparent);
+}
+@keyframes blueprint-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes blueprint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.blueprint-pulse {
+  animation: blueprint-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-draw { animation: none; stroke-dashoffset: 0; }
+  .blueprint-pulse { animation: none; }
+}

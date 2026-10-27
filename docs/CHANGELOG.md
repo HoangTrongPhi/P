@@ -1,4 +1,4 @@
-# Changelog - 3D Asset Toolkit (Project P)
+# Changelog - Poseidon (3D Asset Toolkit, formerly Project P)
 
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -8,7 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### V2 pipeline features
+## [1.0.0] - 2026-10-28
+
+First complete release: the Tauri 2 + Rust + React app (developed as "V2") is now the only
+version, at the repository root, renamed **Poseidon**. The Python / PySide6 prototype (the
+earlier 1.0.0 below, now 0.9.0) has been removed from the repository.
+
+### Release
+- **Renamed Project P → Poseidon**: product, window title, installer, `poseidon.exe` (CLI:
+  `poseidon.exe --recipe …`), app id `com.phineas.poseidon` (app data in
+  `%LOCALAPPDATA%\com.phineas.poseidon`), manifest formats `poseidon.asset-manifest` /
+  `poseidon.kit-manifest` (manifests saved as `project-p.*` still load: the field is not checked).
+  New trident app icon.
+- **Appearance** (`Ctrl+,`, the gear in the navigation rail, or `Ctrl+K` → "Appearance settings…"
+  / "Toggle light / dark theme"): Dark, Light or System theme (the title bar follows), interface
+  font (Segoe UI, Inter, Be Vietnam Pro, Bahnschrift, Tahoma), code and path font (Cascadia Mono,
+  JetBrains Mono, Consolas) and interface size 90-125 %. Inter, Be Vietnam Pro and JetBrains Mono
+  are bundled with full Vietnamese coverage. Remembered between runs; the 3D viewport stays dark.
+- **About & contact**: "Net Surfer, Oblique BeatSaber" (Meta Horizon Worlds, 2026) replaces
+  National Museum Singapore under Selected work; "Check for updates" link in the footer.
+
+### Pipeline features
 - **Installer and Check for updates**: `npm run tauri build` now produces a per-user NSIS setup
   (no admin prompt, English / Vietnamese, Start menu and desktop shortcuts) signed for the updater.
   Release builds look for a newer GitHub release a few seconds after start; the version pill in
@@ -172,13 +192,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `headless_pack.py` copied to `v2/dcc_scripts/blender/` and bundled as a resource.
 
 ### Planned
-- Standalone Windows build (PyInstaller / Nuitka) — not built yet; the app runs from source via `run.bat`.
-- Texture usage inside `.blend` files for the unused-texture report (needs a headless Blender pass).
 - DDS textures inside the 3D viewer (Three.js `DDSLoader`).
 
 ---
 
-## [1.0.0] - 2026-10-26
+## [0.9.0] - 2026-10-26 — Python / PySide6 prototype (removed in 1.0.0)
+
+Released at the time as 1.0.0.
 
 All five implementation phases of the architecture blueprint are complete.
 Self-tests: **65 automated tests pass** (`pytest`, Python 3.13, Blender 5.2.2), plus a 13-step
@@ -268,6 +288,6 @@ end-to-end GUI run covering every tab.
 
 ## [0.1.0-design] - 2026-10-26
 ### Added
-- **Architecture Blueprint**: Created [ARCHITECTURE_AND_SPECS.md](file:///p:/Phineas_LIB/Gogo_Gadgets/Project_P/docs/ARCHITECTURE_AND_SPECS.md) defining core system design, data flow diagrams, module breakdown, and technical stack.
+- **Architecture Blueprint**: Created `ARCHITECTURE_AND_SPECS.md` (removed with the prototype) defining core system design, data flow diagrams, module breakdown, and technical stack.
 - **Specification for Claude Opus 5.5**: Clear requirements for autonomous implementation, self-testing, and optimization.
 - **Project Structure**: Established directory standards for `core/`, `ui/`, `blender_scripts/`, and `docs/`.

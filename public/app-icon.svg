@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#161920"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="#2a3140" stroke-width="8"/>
+  <path d="M256 92 398 174v164L256 420 114 338V174Z" fill="none" stroke="url(#g)" stroke-width="28" stroke-linejoin="round"/>
+  <path d="M114 174 256 256 398 174M256 256v164" fill="none" stroke="url(#g)" stroke-width="28" stroke-linejoin="round" opacity="0.55"/>
+  <!-- Trident: Poseidon -->
+  <g fill="none" stroke="#f59e0b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 168v196"/>
+    <path d="M200 176v40a56 56 0 0 0 112 0v-40"/>
+  </g>
+  <g fill="#f59e0b">
+    <path d="M256 128l-20 44h40Z"/>
+    <path d="M200 136l-18 42h36Z"/>
+    <path d="M312 136l-18 42h36Z"/>
+  </g>
+</svg>

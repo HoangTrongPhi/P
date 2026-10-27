@@ -1,0 +1,94 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Poseidon",
+  "version": "1.0.0",
+  "identifier": "com.phineas.poseidon",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Poseidon — 3D Asset Toolkit",
+        "width": 1400,
+        "height": 880,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "center": true,
+        "backgroundColor": "#0f1115",
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src": "'self' asset: http://asset.localhost blob:",
+        "connect-src": "ipc: http://ipc.localhost asset: http://asset.localhost blob: data:",
+        "worker-src": "'self' blob:"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "category": "GraphicsAndDesign",
+    "shortDescription": "3D asset renamer, FBX path doctor and Blender packer",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../dcc_scripts/": "dcc_scripts/"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "startMenuFolder": "Poseidon",
+        "languages": [
+          "English",
+          "Vietnamese"
+        ],
+        "displayLanguageSelector": true
+      }
+    },
+    "createUpdaterArtifacts": true,
+    "publisher": "Phineas",
+    "copyright": "© 2026 Hoàng Trọng Phi",
+    "homepage": "https://github.com/HoangTrongPhi/P",
+    "longDescription": "3D asset toolkit: renamer, FBX path doctor, Blender packer, previewer, asset matcher and kit assembler."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY3RjNBMEI3Nzg0MTVCQTAKUldTZ1cwRjR0NkR6WnhnelNTZXdYMkJma1M1dnJDZnVLK3V0YnBDRWRBSTRJZk1ZUTgydXU3N1QK",
+      "endpoints": [
+        "https://github.com/HoangTrongPhi/P/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

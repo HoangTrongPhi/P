@@ -1,7 +1,7 @@
-# Project P V2 — Collecting an artist delivery
+# Poseidon — Collecting an artist delivery
 
 From "the artist sent a Google Drive folder" to "clean meshes and textures in the engine project",
-in three tabs of the V2 app (`v2/`, Tauri):
+in three tabs of the app:
 
 1. **Dashboard** (`Ctrl+7`): what is in the delivery.
 2. **Asset Matcher** (`Ctrl+8`): which texture set goes with which mesh.
@@ -75,7 +75,7 @@ Working the list:
 - Before reading, the Matcher estimates the mesh data from names and sizes. Above **64 MB** to
   download it asks first ("about 398.6 MB will download"). Pick a single package to read less.
 - What a mesh contains (materials, texture paths) is **cached** by path, size and modification
-  time in the app data folder (`%LOCALAPPDATA%\com.phineas.projectp\mesh_cache.json`).
+  time in the app data folder (`%LOCALAPPDATA%\com.phineas.poseidon\mesh_cache.json`).
   A rescan reads only new or changed meshes; the summary shows `N read · M cached`, and *clear*
   forgets the cache.
 - On Drive at most 4 meshes are read at a time. **Cancel** stops; what was read stays cached.
@@ -109,7 +109,7 @@ opens the destination. Two different sources never get the same target name (the
 
 ```json
 {
-  "format": "project-p.asset-manifest",
+  "format": "poseidon.asset-manifest",
   "version": 1,
   "root": "G:\\Shared drives\\Artist Repo\\Vaultbreaker\\3D_Environment\\Wall Modular",
   "generated": "2026-10-27T16:49:59.000Z",
@@ -147,7 +147,7 @@ Paths are relative to `root`. `decision` is `auto` (the matcher's pick), `manual
 
 ```json
 {
-  "format": "project-p.kit-manifest",
+  "format": "poseidon.kit-manifest",
   "version": 1,
   "source": "G:\\Shared drives\\…\\Wall Modular",
   "naming": "ue5",
