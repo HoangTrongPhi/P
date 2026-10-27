@@ -35,7 +35,7 @@ struct ProgressPayload {
     message: String,
 }
 
-fn script_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+pub(crate) fn script_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     if let Ok(p) = app.path().resolve(SCRIPT_RESOURCE, BaseDirectory::Resource) {
         if p.is_file() {
             return Ok(p);

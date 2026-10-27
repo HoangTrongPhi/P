@@ -367,6 +367,27 @@ pub fn run_pack(blender: &Path, script: &Path, blend_file: &Path, options: &Pack
     Ok(result)
 }
 
+/// Lower-case file names of every external file a `.blend` references (packed ones included),
+/// read with an analyse-only run of `headless_pack.py` that changes nothing on disk.
+pub fn blend_dependencies(blender: &Path, script: &Path, blend_file: &Path, timeout: Duration) -> Result<Vec<String>, String> {
+    let options = PackOptions { consolidate: false, make_relative: false, analyse_only: true, ..Default::default() };
+    let res = run_pack(blender, script, blend_file, &options, RunHooks { on_line: &mut |_| {}, on_progress: &mut |_, _, _| {}, cancel: None, timeout })?;
+    if let Some(e) = res.error {
+        return Err(e);
+    }
+    let deps = res.report.get("before").and_then(|b| b.as_array()).map(Vec::as_slice).unwrap_or(&[]);
+    let mut names: Vec<String> = deps
+        .iter()
+        .flat_map(|d| ["filepath", "abspath"].map(|k| d.get(k).and_then(|v| v.as_str()).unwrap_or("")))
+        .filter_map(|p| p.rsplit(['\\', '/']).next())
+        .filter(|n| !n.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
 /// Zip the .blend plus its sibling `textures/`, `assets/`, `sounds/` and `fonts/` folders.
 pub fn bundle_archive(blend_file: &Path, archive: &Path) -> std::io::Result<PathBuf> {
     use zip::write::SimpleFileOptions;
@@ -467,6 +488,9 @@ mod tests {
             assert_eq!(deps.len(), 1);
             assert!(deps[0]["exists"].as_bool().unwrap() && !deps[0]["relative"].as_bool().unwrap());
             assert_eq!(fs::read(&blend).unwrap(), before);
+            let names = blend_dependencies(&b.executable, &script(), &blend, Duration::from_secs(300)).unwrap();
+            assert_eq!(names, ["crate_diffuse.png"]);
+            assert_eq!(fs::read(&blend).unwrap(), before, "reading dependencies leaves the file untouched");
 
             // Consolidate to a new location with a zip bundle and live progress.
             let packed = dir.path().join("packed").join("crate.blend");

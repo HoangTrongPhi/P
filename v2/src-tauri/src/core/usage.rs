@@ -1,7 +1,7 @@
 //! Unused texture detection: textures on disk that no FBX / OBJ-MTL / glTF / GLB references.
 //!
-//! `.blend` files are not inspected (that needs Blender), so textures only used by Blender
-//! scenes are listed as unused — the UI says so.
+//! `.blend` files need Blender: the caller passes a reader (see `blender_runner::blend_dependencies`).
+//! Without one, textures only used by Blender scenes are listed as unused — the UI says so.
 
 use std::collections::HashSet;
 use std::fs;
@@ -26,8 +26,15 @@ pub struct UnusedReport {
     pub total_textures: usize,
     /// FBX / MTL / glTF / GLB files that were read.
     pub reference_files: usize,
+    /// `.blend` files found under the folder.
+    pub blend_files: usize,
+    /// `.blend` files whose dependencies were read through Blender.
+    pub blend_inspected: usize,
     pub warnings: Vec<String>,
 }
+
+/// Lower-case texture file names a `.blend` file references.
+pub type BlendReader<'a> = dyn Fn(&Path) -> Result<Vec<String>, String> + Sync + 'a;
 
 fn base_lower(s: &str) -> String {
     s.trim().rsplit(['\\', '/']).next().unwrap_or("").to_lowercase()
@@ -74,7 +81,7 @@ fn gltf_json_refs(json: &serde_json::Value) -> Vec<String> {
 }
 
 /// JSON chunk of a binary glTF.
-fn glb_json(data: &[u8]) -> Option<serde_json::Value> {
+pub(crate) fn glb_json(data: &[u8]) -> Option<serde_json::Value> {
     if data.len() < 20 || &data[..4] != b"glTF" || &data[16..20] != b"JSON" {
         return None;
     }
@@ -97,8 +104,23 @@ fn file_refs(path: &Path) -> Result<Vec<String>, String> {
 }
 
 pub fn find_unused_textures(root: &Path) -> UnusedReport {
+    find_unused_textures_with(root, None)
+}
+
+/// Like `find_unused_textures`, also reading `.blend` files through `blend` when given.
+/// Blender runs one file at a time: each instance is heavy.
+pub fn find_unused_textures_with(root: &Path, blend: Option<&BlendReader>) -> UnusedReport {
     let ref_files = scan(root, &normalize_exts(&["fbx", "mtl", "gltf", "glb"]), true, None).files;
-    let results: Vec<Result<Vec<String>, String>> = ref_files.par_iter().map(|f| file_refs(&f.path)).collect();
+    let mut results: Vec<Result<Vec<String>, String>> = ref_files.par_iter().map(|f| file_refs(&f.path)).collect();
+    let blend_files = scan(root, &normalize_exts(&["blend"]), true, None).files;
+    let mut blend_inspected = 0;
+    if let Some(read) = blend {
+        for f in &blend_files {
+            let r = read(&f.path).map_err(|e| format!("{}: {e}", f.path.display()));
+            blend_inspected += usize::from(r.is_ok());
+            results.push(r);
+        }
+    }
     let mut referenced = HashSet::new();
     // A single broken file must not abort the whole report.
     let mut warnings = Vec::new();
@@ -111,7 +133,15 @@ pub fn find_unused_textures(root: &Path) -> UnusedReport {
     let textures = scan(root, &normalize_exts(TEXTURE_EXTS), true, None).files;
     let total_textures = textures.len();
     let unused: Vec<AssetFile> = textures.into_iter().filter(|t| !referenced.contains(&t.name.to_lowercase())).collect();
-    UnusedReport { reclaimable_bytes: unused.iter().map(|t| t.size).sum(), textures: unused, total_textures, reference_files: ref_files.len(), warnings }
+    UnusedReport {
+        reclaimable_bytes: unused.iter().map(|t| t.size).sum(),
+        textures: unused,
+        total_textures,
+        reference_files: ref_files.len(),
+        blend_files: blend_files.len(),
+        blend_inspected,
+        warnings,
+    }
 }
 
 #[cfg(test)]
@@ -144,6 +174,26 @@ mod tests {
         assert_eq!(rep.reclaimable_bytes, 12);
         assert_eq!(rep.reference_files, 4);
         assert_eq!(rep.warnings.len(), 1, "broken glTF reported, not fatal");
+    }
+
+    #[test]
+    fn blend_reader_adds_references() {
+        let dir = tempfile::tempdir().unwrap();
+        let r = dir.path();
+        for n in ["a.png", "b.png", "c.png"] {
+            fs::write(r.join(n), b"x").unwrap();
+        }
+        fs::write(r.join("scene.blend"), b"BLENDER").unwrap();
+        fs::write(r.join("broken.blend"), b"BLENDER").unwrap();
+        let reader = |p: &Path| -> Result<Vec<String>, String> {
+            if p.ends_with("broken.blend") { Err("cannot open".into()) } else { Ok(vec!["a.png".into(), "B.PNG".to_lowercase()]) }
+        };
+        let rep = find_unused_textures_with(r, Some(&reader));
+        assert_eq!(rep.textures.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(), ["c.png"]);
+        assert_eq!((rep.blend_files, rep.blend_inspected, rep.warnings.len()), (2, 1, 1));
+
+        let without = find_unused_textures(r);
+        assert_eq!((without.textures.len(), without.blend_inspected), (3, 0));
     }
 
     #[test]

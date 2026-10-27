@@ -11,6 +11,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 | 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
 | 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder, unused textures | Done (asset:// loading not yet confirmed in the desktop app) |
 | 4 | Tests and release build | Rust + IPC tests in place; release build not started |
+| 5 | Texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
 
 ## Prerequisites (Windows)
 
@@ -30,6 +31,19 @@ npm run build          # typecheck and bundle the frontend
 npm run tauri build    # release installer (NSIS / MSI)
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
+
+### Command line (recipes)
+
+A recipe saved from the Recipes tab runs without opening a window, e.g. in a build script:
+
+```bash
+project-p.exe --recipe ue5-prep.json D:/Assets/Props --dry-run --report report.json
+```
+
+`--dry-run` changes nothing; `--report` writes the full run as JSON; `--blender <exe>` picks the
+Blender used by `findUnused { includeBlend }`. Exit code: 0 when every step completed, 1 when a
+step failed, 2 for bad arguments or an invalid recipe. Release builds are GUI-subsystem binaries,
+so in `cmd` use `start /wait project-p.exe …` to wait for the exit code.
 
 The Rust tests include a Blender integration test that runs only when Blender 5.0+ is installed.
 To check byte parity on your own FBX files, point `PP_FBX_FIXTURES` at a folder:
@@ -53,7 +67,13 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 | `decode_image(path)` | PSD composite / TIFF → raw `width, height, RGBA8` bytes for the texture inspector |
 | `pack_orm_texture(config)` | R = AO, G = Roughness, B = Metallic → PNG / TGA (missing inputs: AO 1.0, roughness 0.5, metallic 0) |
 | `find_duplicate_assets(folder)` | Size pre-filter, then parallel XXH3-128 |
-| `find_unused_textures(folder)` | Textures no FBX / MTL / glTF / GLB references (.blend not inspected) |
+| `find_unused_textures(folder, includeBlend?, blenderPath?)` | Textures no FBX / MTL / glTF / GLB references; `includeBlend` also reads every `.blend` through headless Blender |
+| `find_texture_sets(folder)` | Textures grouped into material sets by map suffix, missing maps, ORM-ready sets |
+| `pack_orm_batch(configs)` | Several ORM textures in parallel, one result per output |
+| `convert_textures(paths, options)` | Resize / power of two / normal green flip / PNG, TGA, JPG, uncompressed DDS with mips; dry run |
+| `inspect_meshes(paths, triBudget?)` | Triangles, vertices, UV sets, materials, normals, bounds, units, up axis of FBX / OBJ / glTF / GLB |
+| `save_text_file(path, contents)` | Write an exported report or recipe (`.csv` / `.html` / `.json` only) |
+| `load_recipe(path)` / `run_recipe(recipe, folder, dryRun, blenderPath?)` | Recipes; progress on `recipe://progress` |
 | `reveal_in_explorer(path)` / `ui_log(level, message)` | Show a file in Explorer; mirror UI log lines to stderr |
 
 Types for all of them are in `src/types/pipeline.ts`, wrappers in `src/lib/ipc.ts`.
@@ -72,7 +92,9 @@ v2/
 │   └── types/pipeline.ts    IPC contracts shared with Rust
 ├── src-tauri/               Rust backend
 │   ├── src/commands/        thin #[tauri::command] handlers
-│   ├── src/core/            scanner, renamer, fbx/ (reader, writer, node, doctor), blender_runner
+│   ├── src/core/            scanner, renamer, fbx/ (reader, writer, node, doctor), blender_runner,
+│   │                        texture_sets, texture_convert, mesh_stats, recipe
+│   ├── src/cli.rs           headless `--recipe` runner
 │   └── src/utils/           logbus (UI log stream), history (undo file), paths
 └── dcc_scripts/blender/     headless_pack.py, bundled as a resource
 ```
@@ -82,5 +104,5 @@ v2/
 | Keys | Action |
 |---|---|
 | `Ctrl+K` / `Ctrl+P` | Command palette |
-| `Ctrl+1` … `Ctrl+5` | Switch module |
+| `Ctrl+1` … `Ctrl+6` | Switch module |
 | ``Ctrl+` `` | Toggle log drawer |

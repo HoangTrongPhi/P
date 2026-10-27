@@ -6,6 +6,7 @@ import { LogDrawer } from "./components/layout/LogDrawer";
 import { NavigationRail } from "./components/layout/NavigationRail";
 import { BlenderTab } from "./components/tabs/BlenderTab";
 import { FbxDoctorTab } from "./components/tabs/FbxDoctorTab";
+import { RecipesTab } from "./components/tabs/RecipesTab";
 import { RenamerTab } from "./components/tabs/RenamerTab";
 import { ToolsTab } from "./components/tabs/ToolsTab";
 import { useBackendBridge } from "./hooks/useBackendBridge";
@@ -25,6 +26,7 @@ const TABS: Record<TabId, ComponentType> = {
   blender: BlenderTab,
   preview: PreviewTab,
   tools: ToolsTab,
+  recipes: RecipesTab,
 };
 
 export default function App() {

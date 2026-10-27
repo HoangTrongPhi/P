@@ -1,5 +1,6 @@
 //! Project P — Tauri 2 backend: IPC command registration and app bootstrap.
 
+pub mod cli;
 mod commands;
 pub mod core;
 pub mod utils;
@@ -29,6 +30,7 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::app_cmd::app_info,
             commands::app_cmd::log_history,
             commands::app_cmd::ui_log,
+            commands::app_cmd::save_text_file,
             commands::scanner_cmd::scan_directory,
             commands::renamer_cmd::dry_run_rename,
             commands::renamer_cmd::apply_rename,
@@ -45,6 +47,12 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::tools_cmd::pack_orm_texture,
             commands::tools_cmd::find_duplicate_assets,
             commands::tools_cmd::find_unused_textures,
+            commands::tools_cmd::find_texture_sets,
+            commands::tools_cmd::pack_orm_batch,
+            commands::tools_cmd::convert_textures,
+            commands::tools_cmd::inspect_meshes,
+            commands::recipe_cmd::load_recipe,
+            commands::recipe_cmd::run_recipe,
         ])
 }
 

@@ -365,4 +365,67 @@ fn pipeline_tools_flow() {
     assert_eq!(unused["referenceFiles"], 1);
     assert_eq!(unused["totalTextures"], 5);
     assert!(unused["reclaimableBytes"].as_u64().unwrap() > 0);
+    assert_eq!((unused["blendFiles"].as_u64(), unused["blendInspected"].as_u64()), (Some(0), Some(0)));
+}
+
+#[test]
+fn texture_sets_convert_meshes_and_recipes() {
+    let h = Harness::new();
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    for (name, v) in [("wood_roughness.png", 100u8), ("wood_metallic.png", 0), ("wood_basecolor.png", 50), ("rock_N.png", 128)] {
+        image::GrayImage::from_pixel(8, 8, image::Luma([v])).save(root.join(name)).unwrap();
+    }
+
+    // Texture sets (ToolsTab): wood can be packed, rock lacks base color and roughness.
+    let rep = h.ok("find_texture_sets", json!({ "folder": s(root) }));
+    let sets = rep["sets"].as_array().unwrap();
+    assert_eq!(sets.len(), 2);
+    let wood = sets.iter().find(|x| x["name"] == "wood").unwrap();
+    assert_eq!(wood["canPackOrm"], true);
+    assert!(wood["maps"]["roughness"].is_string() && wood["maps"]["baseColor"].is_string());
+    let rock = sets.iter().find(|x| x["name"] == "rock").unwrap();
+    assert_eq!(rock["missing"], json!(["baseColor", "roughness"]));
+
+    let out = root.join("T_Wood_ORM.png");
+    let packed = h.ok("pack_orm_batch", json!({ "configs": [
+        { "roughnessPath": wood["maps"]["roughness"], "metallicPath": wood["maps"]["metallic"], "outputPath": s(&out), "format": "png" },
+        { "outputPath": s(&root.join("bad.png")), "format": "png" }
+    ] }));
+    assert_eq!((packed[0]["ok"].as_bool(), packed[1]["ok"].as_bool()), (Some(true), Some(false)));
+    assert!(out.exists());
+
+    // Converter: folder input, dry run first, then a TGA with the green channel flipped.
+    let opts = json!({ "maxSize": 4, "format": "tga", "flipGreen": true, "suffix": "_GL", "dryRun": true });
+    let dry = h.ok("convert_textures", json!({ "paths": [s(&root.join("rock_N.png"))], "options": opts }));
+    assert_eq!(dry[0]["toSize"], json!([4, 4]));
+    assert!(!root.join("converted").exists());
+    let mut live = opts.clone();
+    live["dryRun"] = json!(false);
+    let done = h.ok("convert_textures", json!({ "paths": [s(&root.join("rock_N.png"))], "options": live }));
+    assert_eq!(done[0]["written"], true);
+    let tga = image::open(root.join("converted").join("rock_N_GL.tga")).unwrap().to_rgba8();
+    assert_eq!(tga.get_pixel(0, 0).0, [128, 127, 128, 255]);
+
+    // Mesh inspector: folders expand to mesh files.
+    fs::write(root.join("tri.obj"), "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n").unwrap();
+    let stats = h.ok("inspect_meshes", json!({ "paths": [s(root)], "triBudget": 0 }));
+    assert_eq!(stats.as_array().unwrap().len(), 1);
+    assert_eq!((stats[0]["triangles"].as_u64(), stats[0]["uvSets"].as_u64()), (Some(1), Some(0)));
+    assert!(stats[0]["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("UV")));
+
+    // Recipes: saved as JSON, loaded back, run as a dry run.
+    let recipe = json!({ "name": "audit", "steps": [{ "kind": "inspectMeshes" }, { "kind": "packOrm", "overwrite": true }] });
+    let file = root.join("audit.json");
+    h.ok("save_text_file", json!({ "path": s(&file), "contents": recipe.to_string() }));
+    assert!(h.invoke("save_text_file", json!({ "path": s(&root.join("x.exe")), "contents": "" })).is_err(), "only report / recipe types");
+    let loaded = h.ok("load_recipe", json!({ "path": s(&file) }));
+    assert_eq!(loaded["steps"][1]["kind"], "packOrm");
+    let before = fs::read(&out).unwrap();
+    let run = h.ok("run_recipe", json!({ "recipe": loaded, "folder": s(root), "dryRun": true }));
+    assert_eq!(run["ok"], true);
+    assert!(run["steps"][1]["summary"].as_str().unwrap().starts_with("Would pack"), "{}", run["steps"][1]["summary"]);
+    assert_eq!(fs::read(&out).unwrap(), before, "dry run leaves files alone");
+    let bad = json!({ "steps": [] });
+    assert!(h.invoke("run_recipe", json!({ "recipe": bad, "folder": s(root), "dryRun": true })).is_err());
 }

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { MODULES } from "../lib/modules";
 import { useAppStore } from "../stores/appStore";
 
-/** Ctrl+K / Ctrl+P palette, Ctrl+` log drawer, Ctrl+1…5 module switch. */
+/** Ctrl+K / Ctrl+P palette, Ctrl+` log drawer, Ctrl+1…6 module switch. */
 export function useGlobalHotkeys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -1,7 +1,8 @@
 use serde::Serialize;
 use tauri::State;
 
-use crate::utils::logbus::{LogBus, LogEntry};
+use crate::utils::logbus::{self, Level, LogBus, LogEntry};
+use crate::utils::paths::ext_lower;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,4 +39,20 @@ pub fn ui_log(level: String, message: String) {
 #[tauri::command]
 pub fn log_history(bus: State<'_, LogBus>) -> Vec<LogEntry> {
     bus.history()
+}
+
+/// Text files the UI may write: exported reports and saved recipes.
+const TEXT_EXTS: &[&str] = &["csv", "html", "htm", "json"];
+
+/// Write an exported report or recipe to a path the user picked in a save dialog.
+#[tauri::command]
+pub fn save_text_file<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String, contents: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    let ext = ext_lower(p);
+    if !TEXT_EXTS.contains(&ext.as_str()) {
+        return Err(format!("Only {} files can be written here", TEXT_EXTS.join(" / ")));
+    }
+    std::fs::write(p, contents).map_err(|e| format!("Cannot write {path}: {e}"))?;
+    logbus::emit(&app, Level::Info, "app", format!("Saved {path}"));
+    Ok(())
 }

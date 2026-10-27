@@ -132,13 +132,16 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           if (o.filters?.[0]?.name === "Textures") return `${PREVIEW_ROOT}/textures/rock01_Roughness.png`;
           if (o.filters?.[0]?.name === "HDRI") return `${PREVIEW_ROOT}/textures/sky_studio.hdr`;
           if (ext === "blend") return [`${ROOT}\\scene\\crate.blend`];
+          if (ext === "json") return `${ROOT}\\recipes\\audit.json`;
           if (ext === "exe") return "C:\\Tools\\blender\\blender.exe";
           return [`${ROOT}\\crate.fbx`, `${ROOT}\\hero.fbx`];
         }
         case "plugin:fs|write_file":
           return null;
-        case "plugin:dialog|save":
-          return a.options?.defaultPath ?? `${ROOT}\\out.zip`;
+        case "plugin:dialog|save": {
+          const d = a.options?.defaultPath ?? "out.zip";
+          return /^[A-Za-z]:|^\//.test(d) ? d : `${ROOT}\\${d}`;
+        }
         case "scan_directory":
           if (String(a.path).startsWith(PREVIEW_ROOT))
             return { root: a.path, files: PREVIEW_FILES.map((f) => ({ path: `${PREVIEW_ROOT}/${f}`, name: f.split("/").pop(), size: 4096, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 2, errors: [] };
@@ -229,8 +232,88 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
             reclaimableBytes: 1_050_000,
             totalTextures: 11,
             referenceFiles: 3,
+            blendFiles: 1,
+            blendInspected: a.includeBlend ? 1 : 0,
             warnings: [],
           };
+        case "find_texture_sets": {
+          await sleep(250);
+          const T = `${PREVIEW_ROOT}/textures`;
+          return {
+            sets: [
+              { dir: T, name: "wood_planks", maps: { baseColor: `${T}/wood_planks_basecolor.png`, normal: `${T}/wood_planks_normal.png`, roughness: `${T}/wood_planks_roughness.png`, ao: `${T}/wood_planks_ao.png` }, extra: [], missing: [], canPackOrm: true, suggestedOrm: `${T}/T_WoodPlanks_ORM.png` },
+              { dir: T, name: "rock01", maps: { roughness: `${T}/rock01_Roughness.png` }, extra: [], missing: ["baseColor", "normal"], canPackOrm: true, suggestedOrm: `${T}/T_Rock01_ORM.png` },
+              { dir: T, name: "metal_plate", maps: { baseColor: `${T}/metal_plate_diff.jpg`, normal: `${T}/metal_plate_nrm.png`, orm: `${T}/T_MetalPlate_ORM.png` }, extra: [], missing: [], canPackOrm: false, suggestedOrm: `${T}/T_MetalPlate_ORM.png` },
+              { dir: PREVIEW_ROOT, name: "crate", maps: { baseColor: `${PREVIEW_ROOT}/crate_diffuse.png`, gloss: `${PREVIEW_ROOT}/crate_gloss.png` }, extra: [], missing: ["normal"], canPackOrm: true, suggestedOrm: `${PREVIEW_ROOT}/T_Crate_ORM.png` },
+            ],
+            totalTextures: 14,
+            unmatched: [`${T}/sky_studio.hdr`, `${T}/ui_icon.dds`, `${T}/poster.psd`],
+          };
+        }
+        case "pack_orm_batch":
+          await sleep(400);
+          return a.configs.map((c: { outputPath: string }) => ({ outputPath: c.outputPath, ok: true, error: null }));
+        case "convert_textures": {
+          await sleep(350);
+          const o = a.options ?? {};
+          const files = (a.paths as string[]).flatMap((p) => (/\.\w+$/.test(p) ? [p] : [`${p}/wood_planks_normal.png`, `${p}/rock01_Roughness.png`, `${p}/sky_studio.hdr`]));
+          return files.map((src) => {
+            const hdr = /\.(hdr|exr)$/i.test(src);
+            const ext = o.format && o.format !== "keep" ? o.format : "png";
+            const name = src.split(/[\\/]/).pop()!.replace(/\.\w+$/, "");
+            const to = o.maxSize ? Math.min(o.maxSize, 1024) : 1024;
+            return {
+              source: src,
+              output: hdr ? null : `${src.replace(/[\\/][^\\/]+$/, "")}/${o.outputDir ?? "converted"}/${name}${o.suffix ?? ""}.${ext}`,
+              fromSize: hdr ? null : [1024, 1024],
+              toSize: hdr ? null : [to, to],
+              bytesBefore: 1_048_576,
+              bytesAfter: hdr || o.dryRun ? null : 400_000,
+              written: !hdr && !o.dryRun,
+              skipped: hdr ? "HDR source: 8-bit output would clip it" : null,
+              error: null,
+            };
+          });
+        }
+        case "inspect_meshes": {
+          await sleep(300);
+          const budget = a.triBudget as number | null;
+          const base = { meshes: 1, polygons: 0, hasNormals: true, unitScaleCm: 1, upAxis: "+Y", error: null };
+          const rows = [
+            { ...base, path: `${PREVIEW_ROOT}/crate.glb`, format: "glb", vertices: 24, triangles: 12, materials: 1, uvSets: 1, bounds: { min: [-1, -1, -1], max: [1, 1, 1] }, unitScaleCm: 100, warnings: [] as string[] },
+            { ...base, path: `${PREVIEW_ROOT}/crate_abs.fbx`, format: "fbx-binary", vertices: 8, triangles: 12, materials: 1, uvSets: 1, bounds: { min: [-50, 0, -50], max: [50, 100, 50] }, warnings: [] as string[] },
+            { ...base, path: `${PREVIEW_ROOT}/crate.obj`, format: "obj", vertices: 8, triangles: 12, materials: 1, uvSets: 0, hasNormals: false, unitScaleCm: null, bounds: { min: [0, 0, 0], max: [1, 1, 1] }, warnings: ["No UV set: textures and lightmaps cannot be mapped", "Missing normals on some meshes: the engine will compute them"] },
+            { ...base, path: `${PREVIEW_ROOT}/hero.fbx`, format: "fbx-binary", meshes: 3, vertices: 48_210, triangles: 91_544, materials: 4, uvSets: 2, unitScaleCm: 2.54, upAxis: "+Z", bounds: { min: [-40, -20, 0], max: [40, 20, 180] }, warnings: ["Unusual unit scale: 1 unit = 2.54 cm"] },
+          ];
+          for (const r of rows) if (budget && r.triangles > budget) r.warnings = [...r.warnings, `${r.triangles} triangles, over the ${budget} budget`];
+          return rows.map((r) => ({ ...r, polygons: r.triangles }));
+        }
+        case "save_text_file":
+          console.info("mockBackend: save_text_file", a.path, `${String(a.contents).length} chars`);
+          return null;
+        case "load_recipe":
+          return { name: "Loaded recipe", steps: [{ kind: "inspectMeshes", triBudget: 20000 }, { kind: "findDuplicates" }] };
+        case "run_recipe": {
+          const steps = a.recipe.steps as { kind: string }[];
+          const titles: Record<string, string> = { rename: "Rename assets", fbxFix: "Fix FBX texture paths", packOrm: "Pack ORM textures", convertTextures: "Convert textures", inspectMeshes: "Inspect meshes", findUnused: "Find unused textures", findDuplicates: "Find duplicates" };
+          const summaries: Record<string, [string, string[]]> = {
+            rename: [`${a.dryRun ? "Would rename" : "Renamed"} 6 of 12 file(s), 1 conflict(s) left as they are`, ["chair.fbx -> SM_Chair.fbx", "wood_planks_basecolor.png -> T_WoodPlanks_D.png", "a.png: Collision Several files map to this name"]],
+            fbxFix: [`${a.dryRun ? "Would rewrite" : "Rewrote"} 4 path(s) in 1 of 3 FBX file(s), 0 unreadable`, ["crate.fbx: 4 path(s)", "hero.fbx: hero_N.png: texture not found, left unchanged"]],
+            packOrm: [`${a.dryRun ? "Would pack" : "Packed"} 2 ORM texture(s) from 4 texture set(s)`, ["textures/T_WoodPlanks_ORM.tga: would pack", "T_Crate_ORM.tga: would pack"]],
+            convertTextures: [`${a.dryRun ? "Would convert" : "Converted"} 3 texture(s), skipped 1`, ["textures/wood_planks_normal.png -> textures/converted/wood_planks_normal.png (1024x1024)", "textures/sky_studio.hdr: skipped, HDR source: 8-bit output would clip it"]],
+            inspectMeshes: ["4 mesh file(s), 91580 triangles, 2 with warnings", ["hero.fbx: 91544 tris, 48210 verts, 2 UV set(s), 4 material(s)", "  ! Unusual unit scale: 1 unit = 2.54 cm"]],
+            findUnused: ["3 of 11 texture(s) unreferenced (1.0 MB)", ["textures/decal_alpha.tga", "textures/ui_icon.dds"]],
+            findDuplicates: ["2 duplicate group(s), 3.3 MB reclaimable", ["3 copies: crate_diffuse.png, tex_external/crate_diffuse.png, backup/crate_diffuse.png"]],
+          };
+          const out = [];
+          for (let i = 0; i < steps.length; i++) {
+            await emit("recipe://progress", { done: i, total: steps.length, message: titles[steps[i].kind] });
+            await sleep(350);
+            const [summary, details] = summaries[steps[i].kind];
+            out.push({ kind: steps[i].kind, title: titles[steps[i].kind], ok: true, skipped: false, summary, details, elapsedMs: 120 + i * 40 });
+          }
+          return { name: a.recipe.name, folder: a.folder, dryRun: a.dryRun, ok: true, steps: out, elapsedMs: out.length * 350 };
+        }
         default:
           if (cmd.startsWith("plugin:event|")) return 0;
           console.warn("mockBackend: unhandled", cmd, args);

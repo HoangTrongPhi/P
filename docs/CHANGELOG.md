@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### V2 pipeline features
+- **Texture sets** (Pipeline Tools): textures are grouped into material sets by their map suffix
+  (`_BaseColor`, `_N`, `_Roughness`, `_Gloss`, `_ORM`, …), with the maps each set lacks; tick the
+  ORM-ready sets and pack all of them at once (gloss maps are inverted into roughness).
+- **Texture converter**: downscale to a maximum size, snap to powers of two, flip the normal map
+  green channel (DirectX <-> OpenGL) and convert to PNG / TGA / JPG / uncompressed DDS with a full
+  mip chain. Output goes to a `converted/` folder by default; existing files are never replaced
+  unless asked; dry run available. HDR sources are skipped instead of clipped.
+- **Mesh inspector**: triangles, vertices, UV sets, materials, normals, local bounds, units and up
+  axis of FBX (binary incl. zlib arrays, and ASCII), OBJ, glTF and GLB, read in Rust without the
+  viewport; warnings for missing UVs / normals, unusual units, odd sizes and a triangle budget.
+- **Unused textures read `.blend` files** through headless Blender (opt-in, one file at a time);
+  the report counts the `.blend` files read and skipped.
+- **Reports**: duplicates, unused textures, texture sets, meshes, conversions, FBX scans and recipe
+  runs export to a standalone HTML page or a CSV table (UTF-8 with BOM for Excel).
+- **Recipes tab + command line**: chain rename, FBX fix, ORM packing, conversion, mesh inspection
+  and the finders into a saved JSON recipe; dry run first, then run for real. The same file runs
+  headless with `project-p.exe --recipe <file> <folder> [--dry-run] [--report out.json]`.
+- **Fix**: images are opened by their content, not only their extension, so a PNG saved as `.tga`
+  decodes in the previewer, the ORM packer and the converter.
+
 ### Asset Previewer — inspection features
 - **Material inspector** (palette button): every material with its texture slots (base color,
   normal, roughness, metalness, AO, emissive, …), embedded / missing marked; a found texture opens

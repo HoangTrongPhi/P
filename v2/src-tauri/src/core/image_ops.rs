@@ -33,8 +33,15 @@ pub fn decode_rgba(path: &Path) -> Result<RgbaImage, String> {
         let data = fs::read(path).map_err(|e| e.to_string())?;
         return decode_psd(&data);
     }
-    let img = image::open(path).map_err(|e| format!("{}: {e}", path.display()))?.to_rgba8();
+    let img = open_image(path)?.to_rgba8();
     Ok(RgbaImage { width: img.width(), height: img.height(), pixels: img.into_raw() })
+}
+
+/// Open by content first, so assets with the wrong extension (a PNG saved as .tga) still decode.
+pub fn open_image(path: &Path) -> Result<image::DynamicImage, String> {
+    let err = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
+    let reader = image::ImageReader::open(path).and_then(|r| r.with_guessed_format()).map_err(|e| err(&e))?;
+    reader.decode().map_err(|e| err(&e))
 }
 
 // --------------------------------------------------------------------------- PSD
@@ -206,7 +213,7 @@ pub struct OrmPackResult {
 fn load_gray(path: &Option<PathBuf>) -> Result<Option<GrayImage>, String> {
     match path {
         None => Ok(None),
-        Some(p) => image::open(p).map(|i| Some(i.to_luma8())).map_err(|e| format!("{}: {e}", p.display())),
+        Some(p) => open_image(p).map(|i| Some(i.to_luma8())),
     }
 }
 
@@ -365,5 +372,8 @@ mod tests {
         let img = decode_rgba(&p).unwrap();
         assert_eq!((img.width, img.height), (3, 2));
         assert_eq!(&img.pixels[..4], &[1, 2, 3, 4]);
+        let mislabeled = dir.path().join("png_data.tga");
+        image::RgbaImage::from_pixel(2, 2, image::Rgba([9, 8, 7, 6])).save_with_format(&mislabeled, ImageFormat::Png).unwrap();
+        assert_eq!(&decode_rgba(&mislabeled).unwrap().pixels[..4], &[9, 8, 7, 6], "decoded by content, not extension");
     }
 }

@@ -6,17 +6,25 @@ import type {
   BlenderPackConfig,
   BlenderPackReport,
   BlenderProgress,
+  ConvertItem,
+  ConvertOptions,
   DuplicateReport,
   FbxFileInfo,
   FbxFixPlan,
   FbxFixResult,
   LogEntry,
+  MeshStats,
+  OrmBatchItem,
   OrmPackConfig,
+  Recipe,
+  RecipeProgress,
+  RecipeRun,
   RenameAction,
   RenameConfig,
   RenameResult,
   RenameRow,
   ScanSummary,
+  TextureSetReport,
   TransactionSummary,
   UndoResult,
   UnusedReport,
@@ -26,6 +34,7 @@ import type {
 export const EVENTS = {
   log: "log://entry",
   blenderProgress: "blender://progress",
+  recipeProgress: "recipe://progress",
 } as const;
 
 /** True inside the Tauri webview; false when the UI runs in a plain browser via `npm run dev`. */
@@ -129,6 +138,44 @@ export function findDuplicateAssets(folder: string): Promise<DuplicateReport> {
   return invoke<DuplicateReport>("find_duplicate_assets", { folder });
 }
 
-export function findUnusedTextures(folder: string): Promise<UnusedReport> {
-  return invoke<UnusedReport>("find_unused_textures", { folder });
+/** `includeBlend` also reads `.blend` files through headless Blender (slow). */
+export function findUnusedTextures(folder: string, includeBlend = false, blenderPath?: string | null): Promise<UnusedReport> {
+  return invoke<UnusedReport>("find_unused_textures", { folder, includeBlend, blenderPath });
+}
+
+export function findTextureSets(folder: string): Promise<TextureSetReport> {
+  return invoke<TextureSetReport>("find_texture_sets", { folder });
+}
+
+export function packOrmBatch(configs: OrmPackConfig[]): Promise<OrmBatchItem[]> {
+  return invoke<OrmBatchItem[]>("pack_orm_batch", { configs });
+}
+
+/** `paths` may contain folders (searched recursively for textures). */
+export function convertTextures(paths: string[], options: ConvertOptions): Promise<ConvertItem[]> {
+  return invoke<ConvertItem[]>("convert_textures", { paths, options });
+}
+
+/** `paths` may contain folders (searched recursively for FBX / OBJ / glTF / GLB). */
+export function inspectMeshes(paths: string[], triBudget?: number | null): Promise<MeshStats[]> {
+  return invoke<MeshStats[]>("inspect_meshes", { paths, triBudget });
+}
+
+// ---------------------------------------------------------------- reports & recipes
+
+/** Write an exported report or recipe (.csv / .html / .json only). */
+export function saveTextFile(path: string, contents: string): Promise<void> {
+  return invoke<void>("save_text_file", { path, contents });
+}
+
+export function loadRecipe(path: string): Promise<Recipe> {
+  return invoke<Recipe>("load_recipe", { path });
+}
+
+export function runRecipe(recipe: Recipe, folder: string, dryRun: boolean, blenderPath?: string | null): Promise<RecipeRun> {
+  return invoke<RecipeRun>("run_recipe", { recipe, folder, dryRun, blenderPath });
+}
+
+export function onRecipeProgress(handler: (p: RecipeProgress) => void): Promise<UnlistenFn> {
+  return listen<RecipeProgress>(EVENTS.recipeProgress, (e) => handler(e.payload));
 }

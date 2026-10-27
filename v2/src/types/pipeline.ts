@@ -1,7 +1,7 @@
 // IPC contracts shared with the Rust backend (ARCHITECTURE_V2_TAURI_RUST.md §5.2).
 // Rust structs serialize with `#[serde(rename_all = "camelCase")]` to match these names.
 
-export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools";
+export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools" | "recipes";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -275,5 +275,145 @@ export interface UnusedReport {
   totalTextures: number;
   /** FBX / MTL / glTF / GLB files that were read. */
   referenceFiles: number;
+  /** `.blend` files under the folder. */
+  blendFiles: number;
+  /** `.blend` files read through Blender (`includeBlend`). */
+  blendInspected: number;
   warnings: string[];
+}
+
+// ---------------------------------------------------------------- texture sets
+
+export type MapKind = "baseColor" | "normal" | "orm" | "roughness" | "gloss" | "metallic" | "ao" | "emissive" | "height" | "opacity" | "specular";
+
+export interface TextureSet {
+  dir: string;
+  /** Base name shared by the maps, e.g. `wood_planks`. */
+  name: string;
+  maps: Partial<Record<MapKind, string>>;
+  /** More files of a map type the set already has. */
+  extra: string[];
+  /** Of base color, normal and ORM-or-roughness. */
+  missing: MapKind[];
+  /** Has roughness / gloss / metallic / AO maps but no ORM yet. */
+  canPackOrm: boolean;
+  /** `<dir>/T_<Name>_ORM.png`. */
+  suggestedOrm: string;
+}
+
+export interface TextureSetReport {
+  sets: TextureSet[];
+  totalTextures: number;
+  /** Textures without a recognisable map suffix. */
+  unmatched: string[];
+}
+
+export interface OrmBatchItem {
+  outputPath: string;
+  ok: boolean;
+  error: string | null;
+}
+
+// ---------------------------------------------------------------- texture converter
+
+export type ConvertFormat = "keep" | "png" | "tga" | "jpg" | "dds";
+
+export interface ConvertOptions {
+  /** Longest side limit; never upscales. */
+  maxSize?: number | null;
+  powerOfTwo?: boolean;
+  format?: ConvertFormat;
+  /** Invert green: DirectX <-> OpenGL normal maps. */
+  flipGreen?: boolean;
+  jpegQuality?: number;
+  ddsMipmaps?: boolean;
+  /** Absolute, or relative to each source folder. Default `converted`. */
+  outputDir?: string;
+  /** Appended to the output stem, e.g. `_GL`. */
+  suffix?: string;
+  overwrite?: boolean;
+  dryRun?: boolean;
+}
+
+export interface ConvertItem {
+  source: string;
+  output: string | null;
+  fromSize: [number, number] | null;
+  toSize: [number, number] | null;
+  bytesBefore: number;
+  bytesAfter: number | null;
+  written: boolean;
+  skipped: string | null;
+  error: string | null;
+}
+
+// ---------------------------------------------------------------- mesh inspector
+
+export interface MeshBounds {
+  min: [number, number, number];
+  max: [number, number, number];
+}
+
+export interface MeshStats {
+  path: string;
+  format: "fbx-binary" | "fbx-ascii" | "obj" | "gltf" | "glb" | string;
+  meshes: number;
+  vertices: number;
+  triangles: number;
+  polygons: number;
+  materials: number;
+  uvSets: number;
+  hasNormals: boolean;
+  /** Local space (node transforms not applied). */
+  bounds: MeshBounds | null;
+  /** Centimetres per file unit. */
+  unitScaleCm: number | null;
+  upAxis: string | null;
+  warnings: string[];
+  error: string | null;
+}
+
+// ---------------------------------------------------------------- recipes
+
+export type RecipeStep =
+  | { kind: "rename"; rules: RenameRuleSpec[]; extensions?: string[]; recursive?: boolean }
+  | { kind: "fbxFix"; options?: Omit<FbxFixPlan, "paths"> }
+  | { kind: "packOrm"; format?: "png" | "tga"; overwrite?: boolean }
+  | { kind: "convertTextures"; options?: ConvertOptions; extensions?: string[]; nameContains?: string }
+  | { kind: "inspectMeshes"; triBudget?: number | null }
+  | { kind: "findUnused"; includeBlend?: boolean }
+  | { kind: "findDuplicates" };
+
+export type RecipeStepKind = RecipeStep["kind"];
+
+export interface Recipe {
+  name: string;
+  description?: string;
+  steps: RecipeStep[];
+}
+
+export interface StepOutcome {
+  kind: RecipeStepKind;
+  title: string;
+  ok: boolean;
+  /** Not run because an earlier step failed. */
+  skipped: boolean;
+  summary: string;
+  details: string[];
+  elapsedMs: number;
+}
+
+export interface RecipeRun {
+  name: string;
+  folder: string;
+  dryRun: boolean;
+  ok: boolean;
+  steps: StepOutcome[];
+  elapsedMs: number;
+}
+
+export interface RecipeProgress {
+  done: number;
+  total: number;
+  message: string;
 }

@@ -1,8 +1,10 @@
-import { ArchiveRestore, ArrowRight, CircleCheck, Eye, FileWarning, FolderOpen, Files, Loader2, RefreshCw, Stethoscope, TriangleAlert, Wrench, X } from "lucide-react";
+import { ArchiveRestore, ArrowRight, CircleCheck, Download, Eye, FileWarning, FolderOpen, Files, Loader2, RefreshCw, Stethoscope, TriangleAlert, Wrench, X } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "../../lib/cn";
 import { pickOne, pickPaths } from "../../lib/dialogs";
 import { basename } from "../../lib/pathUtil";
+import { fbxReport } from "../../lib/reportBuilders";
+import { exportReport } from "../../lib/reports";
 import { useFbxStore } from "../../stores/fbxStore";
 import type { FbxFixMode, FbxFixResult, FbxPathKind, FbxResolution } from "../../types/pipeline";
 import { Checkbox, EmptyState, FieldLabel, PathText, Segmented, TextField } from "../ui/Controls";
@@ -74,6 +76,9 @@ function SourceBar() {
           <>
             <button type="button" className="btn" onClick={() => void rescan()} disabled={scanning}>
               <RefreshCw className={cn("size-3.5", scanning && "animate-spin")} /> Rescan
+            </button>
+            <button type="button" className="btn" onClick={() => void exportReport(fbxReport(files, sources))} disabled={!files.length} title="Save as HTML or CSV">
+              <Download className="size-3.5" /> Export
             </button>
             <button type="button" className="icon-btn" onClick={clear} aria-label="Clear" title="Clear">
               <X className="size-3.5" />
