@@ -1,4 +1,4 @@
-import { Command, Terminal } from "lucide-react";
+import { Command, Terminal, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { MODULES } from "../../lib/modules";
@@ -39,6 +39,7 @@ export function NavigationRail() {
   const logOpen = useAppStore((s) => s.logDrawerOpen);
   const toggleLog = useAppStore((s) => s.toggleLogDrawer);
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
+  const setAboutOpen = useAppStore((s) => s.setAboutOpen);
 
   return (
     <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-edge bg-panel py-3">
@@ -49,6 +50,9 @@ export function NavigationRail() {
         </RailButton>
       ))}
       <div className="flex-1" />
+      <RailButton label="About & contact" onClick={() => setAboutOpen(true)}>
+        <UserRound className="size-[18px]" strokeWidth={1.75} />
+      </RailButton>
       <RailButton label="Command palette" shortcut="Ctrl+K" onClick={() => setPaletteOpen(true)}>
         <Command className="size-[18px]" strokeWidth={1.75} />
       </RailButton>

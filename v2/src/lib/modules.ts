@@ -1,4 +1,4 @@
-import { ListChecks, Package, ScanEye, Stethoscope, TextCursorInput, Wrench, type LucideIcon } from "lucide-react";
+import { ChartBar, ListChecks, Package, ScanEye, Stethoscope, TextCursorInput, Wrench, type LucideIcon } from "lucide-react";
 import type { TabId } from "../types/pipeline";
 
 export interface ModuleDef {
@@ -18,6 +18,7 @@ export const MODULES: ModuleDef[] = [
   { id: "preview", label: "Asset Previewer", description: "3D viewport and texture / HDR inspector", icon: ScanEye, hotkey: "4" },
   { id: "tools", label: "Pipeline Tools", description: "ORM packer, converter, texture sets, meshes, duplicates, unused textures", icon: Wrench, hotkey: "5" },
   { id: "recipes", label: "Recipes", description: "Chain tools into one repeatable run (also from the command line)", icon: ListChecks, hotkey: "6" },
+  { id: "dashboard", label: "Dashboard", description: "Asset counts and sizes by type and by package", icon: ChartBar, hotkey: "7" },
 ];
 
 export const moduleById = (id: TabId) => MODULES.find((m) => m.id === id)!;

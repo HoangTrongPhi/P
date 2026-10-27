@@ -18,6 +18,12 @@
   --color-emerald: #10b981;
   --color-rose: #ef4444;
 
+  /* Dashboard asset-type series (categorical slots 1-4, dark steps; validated on --color-panel). */
+  --color-viz-mesh: #3987e5;
+  --color-viz-texture: #d95926;
+  --color-viz-scene: #199e70;
+  --color-viz-source: #c98500;
+
   --font-sans: "Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
 

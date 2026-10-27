@@ -13,6 +13,23 @@ pub async fn decode_image(path: String) -> Result<Response, String> {
     Ok(Response::new(img.into_bytes()))
 }
 
+/// Open a web or mail link from the About dialog in the default browser / mail app.
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    let allowed = (url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:"))
+        && !url.chars().any(|c| c.is_whitespace() || c.is_control() || c == '"');
+    if !allowed {
+        return Err(format!("Not an http(s) or mailto link: {url}"));
+    }
+    #[cfg(windows)]
+    let result = std::process::Command::new("explorer").arg(&url).spawn();
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(&url).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+    result.map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// Show a file selected in Explorer / Finder / the file manager.
 #[tauri::command]
 pub fn reveal_in_explorer(path: String) -> Result<(), String> {

@@ -11,7 +11,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 | 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
 | 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder, unused textures | Done (asset:// loading not yet confirmed in the desktop app) |
 | 4 | Tests and release build | Rust + IPC tests in place; release build not started |
-| 5 | Texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
+| 5 | Dashboard (assets by type and package), About & contact dialog (`src/lib/author.ts`), texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
 
 ## Prerequisites (Windows)
 
@@ -75,6 +75,7 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 | `save_text_file(path, contents)` | Write an exported report or recipe (`.csv` / `.html` / `.json` only) |
 | `load_recipe(path)` / `run_recipe(recipe, folder, dryRun, blenderPath?)` | Recipes; progress on `recipe://progress` |
 | `reveal_in_explorer(path)` / `ui_log(level, message)` | Show a file in Explorer; mirror UI log lines to stderr |
+| `open_url(url)` | Open an `https://` or `mailto:` link (About & contact dialog) |
 
 Types for all of them are in `src/types/pipeline.ts`, wrappers in `src/lib/ipc.ts`.
 
@@ -104,5 +105,5 @@ v2/
 | Keys | Action |
 |---|---|
 | `Ctrl+K` / `Ctrl+P` | Command palette |
-| `Ctrl+1` … `Ctrl+6` | Switch module |
+| `Ctrl+1` … `Ctrl+7` | Switch module |
 | ``Ctrl+` `` | Toggle log drawer |

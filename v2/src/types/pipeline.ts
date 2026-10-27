@@ -1,7 +1,7 @@
 // IPC contracts shared with the Rust backend (ARCHITECTURE_V2_TAURI_RUST.md §5.2).
 // Rust structs serialize with `#[serde(rename_all = "camelCase")]` to match these names.
 
-export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools" | "recipes";
+export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools" | "recipes" | "dashboard";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 

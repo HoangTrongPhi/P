@@ -126,6 +126,11 @@ export async function decodeImage(path: string): Promise<DecodedImage> {
   return { width: view.getUint32(0, true), height: view.getUint32(4, true), pixels: new Uint8Array(buf, 8) };
 }
 
+/** Open an `https://` or `mailto:` link in the default browser / mail app. */
+export function openUrl(url: string): Promise<void> {
+  return invoke<void>("open_url", { url });
+}
+
 export function revealInExplorer(path: string): Promise<void> {
   return invoke<void>("reveal_in_explorer", { path });
 }

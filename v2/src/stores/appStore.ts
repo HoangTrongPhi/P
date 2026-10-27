@@ -11,6 +11,10 @@ interface AppState {
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
 
+  /** About / contact dialog. */
+  aboutOpen: boolean;
+  setAboutOpen: (open: boolean) => void;
+
   logDrawerOpen: boolean;
   toggleLogDrawer: (open?: boolean) => void;
   logDrawerHeight: number;
@@ -42,6 +46,9 @@ export const useAppStore = create<AppState>()((set) => ({
 
   paletteOpen: false,
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+
+  aboutOpen: false,
+  setAboutOpen: (aboutOpen) => set({ aboutOpen }),
 
   logDrawerOpen: true,
   toggleLogDrawer: (open) => set((s) => ({ logDrawerOpen: open ?? !s.logDrawerOpen })),

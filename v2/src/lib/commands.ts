@@ -1,4 +1,4 @@
-import { FolderOpen, Files, PanelBottom, Trash2, type LucideIcon } from "lucide-react";
+import { FolderOpen, Files, PanelBottom, Trash2, UserRound, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../stores/appStore";
 import { pickPaths } from "./dialogs";
 import { MODULES } from "./modules";
@@ -29,6 +29,7 @@ export function buildCommands(): PaletteCommand[] {
     { id: "act.openFolder", title: "Open folder…", group: "Actions", icon: FolderOpen, keywords: "browse directory scan", run: () => pickPaths("folder") },
     { id: "act.openFiles", title: "Open files…", group: "Actions", icon: Files, keywords: "browse assets fbx texture", run: () => pickPaths("files") },
     { id: "view.toggleLog", title: "Toggle log drawer", group: "View", icon: PanelBottom, shortcut: "Ctrl+`", keywords: "console terminal output", run: () => s.toggleLogDrawer() },
+    { id: "view.about", title: "About & contact", group: "View", icon: UserRound, keywords: "author email contact info help version", run: () => s.setAboutOpen(true) },
     { id: "view.clearLog", title: "Clear log", group: "View", icon: Trash2, keywords: "console reset", run: () => s.clearLogs() },
   ];
 }

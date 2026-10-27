@@ -1,10 +1,12 @@
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense, type ComponentType } from "react";
+import { AboutDialog } from "./components/layout/AboutDialog";
 import { CommandPalette } from "./components/layout/CommandPalette";
 import { HeaderDashboard } from "./components/layout/HeaderDashboard";
 import { LogDrawer } from "./components/layout/LogDrawer";
 import { NavigationRail } from "./components/layout/NavigationRail";
 import { BlenderTab } from "./components/tabs/BlenderTab";
+import { DashboardTab } from "./components/tabs/DashboardTab";
 import { FbxDoctorTab } from "./components/tabs/FbxDoctorTab";
 import { RecipesTab } from "./components/tabs/RecipesTab";
 import { RenamerTab } from "./components/tabs/RenamerTab";
@@ -27,6 +29,7 @@ const TABS: Record<TabId, ComponentType> = {
   preview: PreviewTab,
   tools: ToolsTab,
   recipes: RecipesTab,
+  dashboard: DashboardTab,
 };
 
 export default function App() {
@@ -56,6 +59,7 @@ export default function App() {
         <LogDrawer />
       </div>
       <CommandPalette />
+      <AboutDialog />
     </div>
   );
 }

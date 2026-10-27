@@ -15,6 +15,35 @@ const FILES = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A fake artist delivery on a shared drive, for the Dashboard tab. */
+const DRIVE_ROOT = "G:\\Shared drives\\Artist Repo\\Vaultbreaker\\3D_Environment";
+function driveFiles() {
+  const cat = (n: string) => (/\.(fbx|obj|glb|gltf)$/.test(n) ? "mesh" : /\.blend$/.test(n) ? "scene" : /\.psd$/.test(n) ? "source" : "texture");
+  const packs: [string, number, number, number, number][] = [
+    // name, meshes, texture sets, blends, psds
+    ["Wall Modular", 18, 12, 2, 3],
+    ["Floor Tiles", 6, 9, 1, 0],
+    ["Props_Crates", 9, 6, 1, 2],
+    ["Doors", 5, 4, 1, 1],
+    ["Lighting", 7, 3, 0, 0],
+    ["Pipes & Cables", 14, 5, 1, 0],
+    ["Decals", 0, 16, 0, 4],
+  ];
+  const files: { path: string; name: string; size: number; modifiedMs: number; category: string }[] = [];
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  for (const [pack, meshes, sets, blends, psds] of packs) {
+    const base = pack.replace(/\W+/g, "");
+    const add = (sub: string, name: string, size: number) => files.push({ path: `${DRIVE_ROOT}\\${pack}\\${sub}${name}`, name, size: Math.round(size), modifiedMs: 0, category: cat(name) });
+    for (let i = 1; i <= meshes; i++) add("Meshes\\", `SM_${base}_${String(i).padStart(2, "0")}.fbx`, 2e5 + rnd() * 3e6);
+    for (let i = 1; i <= sets; i++) for (const m of ["BaseColor", "Normal", "ORM"]) add("Textures\\", `T_${base}_${String(i).padStart(2, "0")}_${m}.png`, 1e6 + rnd() * 1.5e7);
+    for (let i = 1; i <= blends; i++) add("", `${base}_source_${i}.blend`, 2e7 + rnd() * 8e7);
+    for (let i = 1; i <= psds; i++) add("Source\\", `${base}_mask_${i}.psd`, 5e6 + rnd() * 4e7);
+  }
+  files.push({ path: `${DRIVE_ROOT}\\preview.png`, name: "preview.png", size: 850_000, modifiedMs: 0, category: "texture" });
+  return files;
+}
+
 /** Real sample files under `sample-assets/` (generated locally), served by Vite as-is. */
 const PREVIEW_ROOT = "/sample-assets/previewer";
 const PREVIEW_FILES = [
@@ -126,6 +155,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
         case "plugin:dialog|open": {
           const o = a.options ?? {};
           const tab = useAppStore.getState().activeTab;
+          if (o.directory && tab === "dashboard") return DRIVE_ROOT;
           if (o.directory) return tab === "preview" || tab === "tools" ? PREVIEW_ROOT : ROOT;
           const ext = o.filters?.[0]?.extensions?.[0];
           if (o.filters?.[0]?.name === "Assets") return [`${PREVIEW_ROOT}/crate.glb`];
@@ -143,6 +173,11 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           return /^[A-Za-z]:|^\//.test(d) ? d : `${ROOT}\\${d}`;
         }
         case "scan_directory":
+          if (String(a.path).startsWith(DRIVE_ROOT)) {
+            await sleep(300);
+            const files = driveFiles().filter((f) => f.path.startsWith(a.path));
+            return { root: a.path, files, counts: {}, totalSize: files.reduce((n, f) => n + f.size, 0), elapsedMs: 41, errors: [] };
+          }
           if (String(a.path).startsWith(PREVIEW_ROOT))
             return { root: a.path, files: PREVIEW_FILES.map((f) => ({ path: `${PREVIEW_ROOT}/${f}`, name: f.split("/").pop(), size: 4096, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 2, errors: [] };
           return { root: a.path, files: FILES.map((f) => ({ path: `${ROOT}\\${f}`, name: f, size: 1024, modifiedMs: 0, category: "texture" })), counts: {}, totalSize: 0, elapsedMs: 3, errors: [] };
@@ -208,6 +243,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
         case "decode_image":
           return fakeDecode(a.path);
         case "reveal_in_explorer":
+        case "open_url":
           return null;
         case "pack_orm_texture":
           await sleep(300);
