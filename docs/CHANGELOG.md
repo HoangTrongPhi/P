@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### V2 pipeline features
+- **Google Drive deliveries**: Asset Matcher and Dashboard get a Drive menu next to "Choose…" that
+  lists the Google Drive for desktop drives with My Drive and every shared drive, plus a field
+  for a pasted folder path (Explorer's quoted "Copy as path" works) or a Drive link (explained:
+  links are opened through Drive for desktop, with the folder id shown). Before matching a
+  folder on Drive the toolkit estimates the mesh data to read from names and sizes alone and asks
+  before downloading more than 64 MB. Mesh facts (materials, texture paths) are cached by path,
+  size and modification time in the app data folder, so a rescan reads only new or changed
+  meshes (the summary shows read vs cached); on Drive at most 4 files are read at once. Matching
+  shows progress and can be cancelled; meshes read before the cancel stay cached.
 - **Kit Assembler** (Asset Matcher → "Assemble kit…", or "Assemble kit from manifest…" in the
   command palette): copies the matched meshes and texture sets into a destination project as
   `Meshes/` + `Textures/` (optionally per package folder), renamed to UE5 (`SM_` / `T_*_D`, `_N`,

@@ -9,6 +9,7 @@ import type {
   BlenderProgress,
   ConvertItem,
   ConvertOptions,
+  DriveMount,
   DuplicateReport,
   FbxFileInfo,
   FbxFixPlan,
@@ -22,6 +23,7 @@ import type {
   OrmPackConfig,
   Recipe,
   RecipeProgress,
+  ReadEstimate,
   RecipeRun,
   RenameAction,
   RenameConfig,
@@ -40,6 +42,7 @@ export const EVENTS = {
   blenderProgress: "blender://progress",
   recipeProgress: "recipe://progress",
   kitProgress: "kit://progress",
+  matcherProgress: "matcher://progress",
 } as const;
 
 /** True inside the Tauri webview; false when the UI runs in a plain browser via `npm run dev`. */
@@ -159,6 +162,28 @@ export function findTextureSets(folder: string): Promise<TextureSetReport> {
 
 export function matchAssets(folder: string): Promise<MatchReport> {
   return invoke<MatchReport>("match_assets", { folder });
+}
+
+export function matcherEstimate(folder: string): Promise<ReadEstimate> {
+  return invoke<ReadEstimate>("matcher_estimate", { folder });
+}
+
+export function cancelMatching(): Promise<void> {
+  return invoke<void>("cancel_matching");
+}
+
+/** Returns how many cached mesh files were forgotten. */
+export function clearMeshCache(): Promise<number> {
+  return invoke<number>("clear_mesh_cache");
+}
+
+/** `message` is the mesh file just read. */
+export function onMatcherProgress(handler: (p: RecipeProgress) => void): Promise<UnlistenFn> {
+  return listen<RecipeProgress>(EVENTS.matcherProgress, (e) => handler(e.payload));
+}
+
+export function driveMounts(): Promise<DriveMount[]> {
+  return invoke<DriveMount[]>("drive_mounts");
 }
 
 export function loadAssetManifest(path: string): Promise<AssetManifest> {

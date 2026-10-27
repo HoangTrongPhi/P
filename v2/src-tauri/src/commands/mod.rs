@@ -5,6 +5,7 @@ pub mod app_cmd;
 pub mod blender_cmd;
 pub mod fbx_cmd;
 pub mod kit_cmd;
+pub mod matcher_cmd;
 pub mod preview_cmd;
 pub mod recipe_cmd;
 pub mod renamer_cmd;

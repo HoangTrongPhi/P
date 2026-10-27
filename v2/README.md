@@ -68,7 +68,10 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 | `pack_orm_texture(config)` | R = AO, G = Roughness, B = Metallic → PNG / TGA (missing inputs: AO 1.0, roughness 0.5, metallic 0) |
 | `find_duplicate_assets(folder)` | Size pre-filter, then parallel XXH3-128 |
 | `find_unused_textures(folder, includeBlend?, blenderPath?)` | Textures no FBX / MTL / glTF / GLB references; `includeBlend` also reads every `.blend` through headless Blender |
-| `match_assets(folder)` | Every mesh / material slot matched to a texture set: score 0-100, reasons, exact / likely / review / none, unused sets |
+| `match_assets(folder)` | Every mesh / material slot matched to a texture set: score 0-100, reasons, exact / likely / review / none, unused sets. Mesh facts are cached by path + size + time; 4 parallel reads on Google Drive; emits `matcher://progress` |
+| `matcher_estimate(folder)` | Mesh files and bytes a match would read, how much is cached, whether the folder is on Google Drive (names and sizes only) |
+| `cancel_matching()` / `clear_mesh_cache()` | Stop a match (what was read stays cached) / forget cached meshes |
+| `drive_mounts()` | Google Drive for desktop mounts with My Drive and the shared drives |
 | `load_asset_manifest(path)` | Read an `asset_manifest.json` saved by the Asset Matcher |
 | `assemble_kit(manifest, options)` | Copy a manifest into `Meshes/` + `Textures/` with UE5 / Unity names, ORM packing and relinked FBX / MTL / glTF paths; dry run plans only; emits `kit://progress` |
 | `find_texture_sets(folder)` | Textures grouped into material sets by map suffix, missing maps, ORM-ready sets |

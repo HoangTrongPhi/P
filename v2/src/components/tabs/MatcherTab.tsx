@@ -1,16 +1,16 @@
-import { AlertTriangle, ArrowUpLeft, Box, Check, CheckCheck, CircleSlash, Download, FileJson, FolderOpen, Layers, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { AlertTriangle, ArrowUpLeft, Box, Check, CheckCheck, CircleSlash, Cloud, Database, Download, FileJson, FolderOpen, Layers, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
-import { pickOne } from "../../lib/dialogs";
 import { inTauri, revealInExplorer } from "../../lib/ipc";
-import { basename, dirname } from "../../lib/pathUtil";
+import { basename, dirname, humanSize } from "../../lib/pathUtil";
 import { MAP_LABELS } from "../../lib/reportBuilders";
 import { exportReport, relPath, type ReportDoc } from "../../lib/reports";
 import { uiLog } from "../../stores/appStore";
 import { useKitStore } from "../../stores/kitStore";
 import { choiceFor, needsDecision, slotKey, useMatcherStore, type MatchFilter, type Override } from "../../stores/matcherStore";
-import type { MapKind, MatchReport, MatchStatus, SlotMatch } from "../../types/pipeline";
-import { EmptyState, PathText, Segmented } from "../ui/Controls";
+import type { MapKind, MatchReport, MatchStatus, RecipeProgress, SlotMatch } from "../../types/pipeline";
+import { EmptyState, PathText, ProgressBar, Segmented } from "../ui/Controls";
+import { LocationPicker } from "../ui/LocationPicker";
 import { GlassCard } from "../ui/GlassCard";
 
 const STATUS: Record<MatchStatus, { label: string; hint: string; icon: typeof Check; cls: string }> = {
@@ -60,7 +60,8 @@ function matches(report: MatchReport, mi: number, slot: SlotMatch, query: string
 // ---------------------------------------------------------------- tab
 
 export function MatcherTab() {
-  const { folder, report, loading, filter, query, overrides, selected, load, refresh, setFilter, setQuery, acceptAllBest, saveManifest } = useMatcherStore();
+  const { folder, report, loading, filter, query, overrides, load, refresh, setFilter, setQuery, acceptAllBest, saveManifest, confirm, progress, confirmRead, dismissConfirm, cancel, clearCache } = useMatcherStore();
+  const selected = useMatcherStore((s) => s.selected);
   const { openFromMatcher, openManifestFile } = useKitStore();
 
   const counts = useMemo(() => {
@@ -81,7 +82,7 @@ export function MatcherTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
-      <GlassCard className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+      <GlassCard className="relative z-20 flex flex-wrap items-center gap-2 px-4 py-2.5">
         <FolderOpen className="size-4 shrink-0 text-ink-faint" />
         {folder ? <PathText path={folder} className="min-w-0 flex-1 text-ink" /> : <span className="flex-1 text-[12.5px] text-ink-faint">Drop an artist delivery folder — local or G:\Shared drives\…</span>}
         {folder && (
@@ -94,9 +95,7 @@ export function MatcherTab() {
             </button>
           </>
         )}
-        <button type="button" className="btn" onClick={async () => { const f = await pickOne("folder"); if (f) void load(f); }}>
-          Choose…
-        </button>
+        <LocationPicker onPick={(f) => void load(f)} />
         <button type="button" className="btn" disabled={!report} onClick={() => report && void exportReport(matcherReport(report, overrides))} title="Save as HTML or CSV">
           <Download className="size-3.5" /> Export
         </button>
@@ -113,11 +112,30 @@ export function MatcherTab() {
         </button>
       </GlassCard>
 
+      {confirm && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber/30 bg-amber/5 px-4 py-2.5 text-[12.5px] text-ink-muted" role="alert">
+          <Cloud className="size-4 shrink-0 text-amber" />
+          <div className="min-w-0 flex-1">
+            <span className="text-ink">This folder is on Google Drive.</span> Matching reads {confirm.meshes - confirm.cachedMeshes} mesh file(s): about{" "}
+            <b className="text-ink">{humanSize(confirm.bytes - confirm.cachedBytes)}</b> will download
+            {confirm.cachedMeshes > 0 && ` (${confirm.cachedMeshes} file(s), ${humanSize(confirm.cachedBytes)} already cached)`}. Textures are only listed. Tip: pick a single package folder to read less.
+          </div>
+          <button type="button" className="btn" onClick={dismissConfirm}>
+            Not now
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => void confirmRead()}>
+            <Download className="size-3.5" /> Read meshes
+          </button>
+        </div>
+      )}
+
+      {loading && report && <MatchProgress progress={progress} onCancel={cancel} />}
+
       {!report ? (
         <GlassCard className="flex flex-1 items-center justify-center">
           {loading ? (
-            <div className="flex items-center gap-2 text-[12.5px] text-ink-muted">
-              <Loader2 className="size-5 animate-spin text-accent" /> Reading meshes and grouping textures…
+            <div className="w-full max-w-md px-6">
+              <MatchProgress progress={progress} onCancel={cancel} />
             </div>
           ) : (
             <EmptyState icon={<Link2 className="size-5" />} title="Which texture goes with which mesh?">
@@ -142,6 +160,12 @@ export function MatcherTab() {
               <span><StatusBadge status="exact" /> {counts.exact}</span>
               <span><StatusBadge status="likely" /> {counts.likely}</span>
               <span title="Texture sets no mesh slot picked">{report.orphanSets.length} unused set(s)</span>
+              <span className="flex items-center gap-1" title="Mesh files read this time vs. reused from the cache (unchanged since last read)">
+                <Database className="size-3" /> {report.readFiles} read · {report.cachedFiles} cached
+                <button type="button" className="ml-0.5 text-ink-faint underline-offset-2 hover:text-ink hover:underline" onClick={() => void clearCache()} title="Forget cached meshes: the next match reads (downloads) them again">
+                  clear
+                </button>
+              </span>
               {counts.missingRefs > 0 && <span className="text-amber" title="Texture names referenced by meshes but not in the folder">{counts.missingRefs} missing reference(s)</span>}
             </div>
             <div className="flex-1" />
@@ -159,6 +183,21 @@ export function MatcherTab() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function MatchProgress({ progress, onCancel }: { progress: RecipeProgress | null; onCancel: () => void }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-edge bg-panel/80 px-4 py-2.5">
+      <Loader2 className="size-4 shrink-0 animate-spin text-accent" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <ProgressBar value={progress?.done ?? 0} total={progress?.total ?? 0} indeterminate={!progress} />
+        <span className="truncate text-[11.5px] text-ink-faint">{progress ? `Reading meshes ${progress.done}/${progress.total} · ${progress.message}` : "Listing meshes and grouping textures…"}</span>
+      </div>
+      <button type="button" className="btn h-7" onClick={onCancel} title="Stop; meshes read so far stay cached">
+        Cancel
+      </button>
     </div>
   );
 }

@@ -2,10 +2,10 @@ import { create } from "zustand";
 import { pickSavePath } from "../lib/dialogs";
 import { registerDropHandler } from "../lib/dropRouter";
 import { classifyPaths } from "../lib/fsInfo";
-import { matchAssets, saveTextFile } from "../lib/ipc";
+import { cancelMatching, clearMeshCache, matchAssets, matcherEstimate, onMatcherProgress, saveTextFile } from "../lib/ipc";
 import { dirname } from "../lib/pathUtil";
 import { relPath } from "../lib/reports";
-import type { MatchReport, MatchStatus, SlotMatch, TextureSet } from "../types/pipeline";
+import type { MatchReport, MatchStatus, ReadEstimate, RecipeProgress, SlotMatch, TextureSet } from "../types/pipeline";
 import { uiLog, useAppStore } from "./appStore";
 
 export type MatchFilter = "all" | "todo" | "review" | "none";
@@ -77,10 +77,20 @@ export function buildManifest(report: MatchReport, overrides: Record<string, Ove
   };
 }
 
+/** On Google Drive, ask before downloading more mesh data than this. */
+export const CONFIRM_BYTES = 64 * 1024 * 1024;
+
 interface MatcherState {
   folder: string | null;
   report: MatchReport | null;
   loading: boolean;
+  /** A Drive folder waiting for the go-ahead to download its meshes. */
+  confirm: ReadEstimate | null;
+  progress: RecipeProgress | null;
+  confirmRead: () => Promise<void>;
+  dismissConfirm: () => void;
+  cancel: () => void;
+  clearCache: () => Promise<void>;
   filter: MatchFilter;
   query: string;
   overrides: Record<string, Override>;
@@ -106,17 +116,33 @@ export const useMatcherStore = create<MatcherState>()((set, get) => ({
   query: "",
   overrides: {},
   selected: null,
+  confirm: null,
+  progress: null,
   load: async (folder) => {
-    const keep = get().folder === folder;
-    set({ folder, loading: true });
+    const keep = get().folder === folder && !!get().report;
+    set({ folder, confirm: null, ...(keep ? {} : { report: null }) });
+    // Names and sizes only; decides whether reading the meshes needs a go-ahead.
+    const estimate = await matcherEstimate(folder).catch(() => null);
+    if (estimate?.onDrive && estimate.bytes - estimate.cachedBytes > CONFIRM_BYTES) {
+      set({ confirm: estimate });
+      return;
+    }
+    await runMatch(folder, keep);
+  },
+  confirmRead: async () => {
+    const { folder, report } = get();
+    if (!folder) return;
+    set({ confirm: null });
+    await runMatch(folder, !!report);
+  },
+  dismissConfirm: () => set({ confirm: null }),
+  cancel: () => void cancelMatching().catch(() => {}),
+  clearCache: async () => {
     try {
-      const report = await matchAssets(folder);
-      // A refresh of the same folder keeps the picks a person already made.
-      set({ report, ...(keep ? {} : { overrides: {}, selected: null }) });
+      const n = await clearMeshCache();
+      uiLog("info", `Forgot ${n} cached mesh file(s); the next match reads them again`);
     } catch (err) {
-      uiLog("error", `Asset matching failed: ${err}`);
-    } finally {
-      set({ loading: false });
+      uiLog("error", `Clearing the mesh cache failed: ${err}`);
     }
   },
   refresh: async () => {
@@ -159,6 +185,22 @@ export const useMatcherStore = create<MatcherState>()((set, get) => ({
     }
   },
 }));
+
+/** Read and match `folder`; `keep` keeps the picks a person already made (a refresh). */
+async function runMatch(folder: string, keep: boolean) {
+  const set = useMatcherStore.setState;
+  set({ loading: true, progress: null });
+  const unlisten = await onMatcherProgress((progress) => set({ progress })).catch(() => null);
+  try {
+    const report = await matchAssets(folder);
+    set({ report, ...(keep ? {} : { overrides: {}, selected: null }) });
+  } catch (err) {
+    if (String(err) !== "Cancelled") uiLog("error", `Asset matching failed: ${err}`);
+  } finally {
+    unlisten?.();
+    set({ loading: false, progress: null });
+  }
+}
 
 registerDropHandler("matcher", async (paths) => {
   useAppStore.getState().setActiveTab("matcher");

@@ -15,6 +15,10 @@ const FILES = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Folders the mock matcher has "read" (their meshes are cached). */
+const matcherCache = new Set<string>();
+let matcherCancel = false;
+
 /** A saved manifest, as the Asset Matcher would write it for the mock delivery. */
 function mockMatchManifest() {
   const root = `${DRIVE_ROOT}\\Wall Modular`;
@@ -403,9 +407,32 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
             unmatched: [`${T}/sky_studio.hdr`, `${T}/ui_icon.dds`, `${T}/poster.psd`],
           };
         }
+        case "drive_mounts":
+          return [{ root: "G:\\", myDrive: "G:\\My Drive", sharedDrives: ["Artist Repo", "Audio", "Marketing"].map((d) => `G:\\Shared drives\\${d}`) }];
+        case "matcher_estimate": {
+          const onDrive = String(a.folder).startsWith("G:");
+          const cached = matcherCache.has(String(a.folder));
+          return { meshes: 8, bytes: 418_000_000, cachedMeshes: cached ? 8 : 0, cachedBytes: cached ? 418_000_000 : 0, onDrive };
+        }
         case "match_assets": {
-          await sleep(450);
-          return mockMatchReport(String(a.folder));
+          const folder = String(a.folder);
+          const fresh = !matcherCache.has(folder);
+          matcherCancel = false;
+          for (let i = 1; i <= 8; i++) {
+            await sleep(fresh ? 350 : 20);
+            if (matcherCancel) throw "Cancelled";
+            await emit("matcher://progress", { done: i, total: 8, message: `SM_Mesh_${String(i).padStart(2, "0")}.fbx` });
+          }
+          matcherCache.add(folder);
+          return { ...mockMatchReport(folder), readFiles: fresh ? 8 : 0, cachedFiles: fresh ? 0 : 8 };
+        }
+        case "cancel_matching":
+          matcherCancel = true;
+          return null;
+        case "clear_mesh_cache": {
+          const n = matcherCache.size * 8;
+          matcherCache.clear();
+          return n;
         }
         case "pack_orm_batch":
           await sleep(400);

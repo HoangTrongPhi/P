@@ -12,16 +12,18 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::time::Instant;
 
 use rayon::prelude::*;
 use serde::Serialize;
 
-use super::mesh_stats::inspect_mesh;
+use super::mesh_cache::{read_facts, MeshCache, MeshFacts};
 use super::renamer::split_words;
-use super::scanner::{normalize_exts, scan};
+use super::scanner::{normalize_exts, scan, AssetFile};
 use super::texture_sets::{group_texture_sets, TextureSet};
-use super::usage::{base_lower, mesh_texture_paths};
+use super::usage::base_lower;
 use crate::utils::paths::{MESH_EXTS, TEXTURE_EXTS};
 
 /// Naming-convention prefixes that say what an asset is, not which one.
@@ -94,6 +96,10 @@ pub struct MatchReport {
     pub orphan_sets: Vec<usize>,
     /// Textures without a recognisable map suffix (not grouped into sets).
     pub loose_textures: Vec<PathBuf>,
+    /// Mesh files read this time (downloaded, on Drive).
+    pub read_files: usize,
+    /// Mesh files whose facts came from the cache.
+    pub cached_files: usize,
     pub elapsed_ms: u64,
 }
 
@@ -282,12 +288,8 @@ fn status_of(candidates: &[Candidate], referenced: bool) -> MatchStatus {
     }
 }
 
-fn match_mesh(path: &Path, sets: &[TextureSet], infos: &[SetInfo], texture_names: &HashSet<String>) -> MeshMatch {
-    let stats = inspect_mesh(path, None);
-    let (mut raw, error) = match mesh_texture_paths(path) {
-        Ok(r) => (r, stats.error.clone()),
-        Err(e) => (Vec::new(), Some(e)),
-    };
+fn match_mesh(path: &Path, facts: MeshFacts, sets: &[TextureSet], infos: &[SetInfo], texture_names: &HashSet<String>) -> MeshMatch {
+    let MeshFacts { material_names, references: mut raw, error } = facts;
     raw.sort();
     raw.dedup();
     let dir = path.parent().unwrap_or(Path::new(""));
@@ -303,7 +305,7 @@ fn match_mesh(path: &Path, sets: &[TextureSet], infos: &[SetInfo], texture_names
     let referenced_sets = infos.iter().filter(|i| refs.iter().any(|r| i.files.contains_key(&r.base))).count();
 
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    let slots_src: Vec<(String, bool)> = if stats.material_names.is_empty() { vec![(stem.clone(), false)] } else { stats.material_names.iter().map(|m| (m.clone(), true)).collect() };
+    let slots_src: Vec<(String, bool)> = if material_names.is_empty() { vec![(stem.clone(), false)] } else { material_names.into_iter().map(|m| (m, true)).collect() };
     let ctx = MeshCtx { tokens: name_tokens(&stem), dir, refs, referenced_sets, single_slot: slots_src.len() == 1 };
 
     let slots = slots_src
@@ -327,9 +329,99 @@ fn match_mesh(path: &Path, sets: &[TextureSet], infos: &[SetInfo], texture_names
     MeshMatch { path: path.to_path_buf(), references: raw, missing_references, slots, error }
 }
 
+/// How much mesh data a match would read, and how much of it the cache already has.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadEstimate {
+    pub meshes: usize,
+    pub bytes: u64,
+    pub cached_meshes: usize,
+    pub cached_bytes: u64,
+    /// The folder is streamed by Google Drive: reading a file downloads it.
+    pub on_drive: bool,
+}
+
+fn mesh_files(root: &Path, cancel: Option<&AtomicBool>) -> Vec<AssetFile> {
+    let mut files = scan(root, &normalize_exts(MESH_EXTS), true, cancel).files;
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    files
+}
+
+/// Names and sizes only: nothing is downloaded.
+pub fn estimate_read(root: &Path, cache: &MeshCache, on_drive: bool) -> ReadEstimate {
+    let files = mesh_files(root, None);
+    let cached: Vec<&AssetFile> = files.iter().filter(|f| cache.contains(&f.path, f.size, f.modified_ms)).collect();
+    ReadEstimate {
+        meshes: files.len(),
+        bytes: files.iter().map(|f| f.size).sum(),
+        cached_meshes: cached.len(),
+        cached_bytes: cached.iter().map(|f| f.size).sum(),
+        on_drive,
+    }
+}
+
+/// `(done, total, file)` callback, called from worker threads.
+pub type Progress<'a> = dyn Fn(usize, usize, &Path) + Sync + 'a;
+
+/// Optional extras for a match run.
+#[derive(Default)]
+pub struct MatchEnv<'a> {
+    /// Mesh facts already read; new reads are added to it.
+    pub cache: Option<&'a Mutex<MeshCache>>,
+    /// `(done, total, file)` after each mesh, from worker threads.
+    pub progress: Option<&'a Progress<'a>>,
+    pub cancel: Option<&'a AtomicBool>,
+    /// Parallel mesh reads; fewer for a streamed drive so downloads do not pile up.
+    pub threads: Option<usize>,
+}
+
 /// Match every mesh under `root` (recursively) against the texture sets under `root`.
 pub fn match_assets(root: &Path) -> MatchReport {
+    match_assets_with(root, &MatchEnv::default()).expect("not cancellable")
+}
+
+/// `match_assets` with a cache, progress, cancellation and a thread limit. `Err` only when cancelled.
+pub fn match_assets_with(root: &Path, env: &MatchEnv) -> Result<MatchReport, String> {
     let start = Instant::now();
+    let cancelled = || env.cancel.is_some_and(|c| c.load(Ordering::Relaxed));
+    let files = mesh_files(root, env.cancel);
+    let total = files.len();
+    let done = AtomicUsize::new(0);
+    let read = || -> Vec<Option<(MeshFacts, bool)>> {
+        files
+            .par_iter()
+            .map(|f| {
+                if cancelled() {
+                    return None;
+                }
+                let cached = env.cache.and_then(|c| c.lock().ok()?.get(&f.path, f.size, f.modified_ms));
+                let fresh = cached.is_none();
+                let facts = cached.unwrap_or_else(|| read_facts(&f.path));
+                let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+                if let Some(p) = env.progress {
+                    p(n, total, &f.path);
+                }
+                Some((facts, fresh))
+            })
+            .collect()
+    };
+    let results = match env.threads.and_then(|t| rayon::ThreadPoolBuilder::new().num_threads(t).build().ok()) {
+        Some(pool) => pool.install(read),
+        None => read(),
+    };
+    // Keep what was read even when cancelled: on Drive it was paid for with a download.
+    let read_files = results.iter().flatten().filter(|(_, fresh)| *fresh).count();
+    if let Some(cache) = env.cache.and_then(|c| c.lock().ok()).as_mut() {
+        for (f, r) in files.iter().zip(&results) {
+            if let Some((facts, true)) = r {
+                cache.put(&f.path, f.size, f.modified_ms, facts.clone());
+            }
+        }
+    }
+    if cancelled() {
+        return Err("Cancelled".into());
+    }
+
     let textures: Vec<PathBuf> = scan(root, &normalize_exts(TEXTURE_EXTS), true, None).files.into_iter().map(|f| f.path).collect();
     let texture_names: HashSet<String> = textures.iter().filter_map(|p| p.file_name()).map(|n| n.to_string_lossy().to_lowercase()).collect();
     let grouped = group_texture_sets(&textures);
@@ -342,20 +434,20 @@ pub fn match_assets(root: &Path) -> MatchReport {
         })
         .collect();
 
-    let mut mesh_paths: Vec<PathBuf> = scan(root, &normalize_exts(MESH_EXTS), true, None).files.into_iter().map(|f| f.path).collect();
-    mesh_paths.sort();
-    let meshes: Vec<MeshMatch> = mesh_paths.par_iter().map(|p| match_mesh(p, &grouped.sets, &infos, &texture_names)).collect();
+    let meshes: Vec<MeshMatch> = files.par_iter().zip(results).filter_map(|(f, r)| r.map(|(facts, _)| match_mesh(&f.path, facts, &grouped.sets, &infos, &texture_names))).collect();
 
     let picked: HashSet<usize> = meshes.iter().flat_map(|m| &m.slots).filter_map(|s| s.candidates.first()).map(|c| c.set).collect();
     let orphan_sets = (0..grouped.sets.len()).filter(|i| !picked.contains(i)).collect();
-    MatchReport {
+    Ok(MatchReport {
         root: root.to_path_buf(),
+        cached_files: meshes.len() - read_files,
+        read_files,
         meshes,
         sets: grouped.sets,
         orphan_sets,
         loose_textures: grouped.unmatched,
         elapsed_ms: start.elapsed().as_millis() as u64,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -463,6 +555,39 @@ mod tests {
         let mut orphans: Vec<String> = rep.orphan_sets.iter().map(|&i| format!("{}/{}", relative(&rep.sets[i].dir, r), rep.sets[i].name)).collect();
         orphans.sort();
         assert_eq!(orphans, ["Old/Backup/Crate", "Textures/Unused"]);
+    }
+
+    #[test]
+    fn rescans_read_only_changed_meshes() {
+        let dir = tempfile::tempdir().unwrap();
+        let r = dir.path();
+        fs::write(r.join("T_Box_D.png"), b"px").unwrap();
+        fs::write(r.join("SM_Box.obj"), b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n").unwrap();
+        fs::write(r.join("SM_Crate.obj"), b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n").unwrap();
+        let cache = Mutex::new(MeshCache::default());
+        let seen = AtomicUsize::new(0);
+        let progress = |_: usize, _: usize, _: &Path| {
+            seen.fetch_add(1, Ordering::Relaxed);
+        };
+        let env = MatchEnv { cache: Some(&cache), progress: Some(&progress), cancel: None, threads: Some(2) };
+
+        assert_eq!(estimate_read(r, &cache.lock().unwrap(), false).cached_meshes, 0);
+        let first = match_assets_with(r, &env).unwrap();
+        assert_eq!((first.read_files, first.cached_files), (2, 0));
+        assert_eq!(seen.load(Ordering::Relaxed), 2);
+        let est = estimate_read(r, &cache.lock().unwrap(), true);
+        assert_eq!((est.meshes, est.cached_meshes, est.bytes == est.cached_bytes, est.on_drive), (2, 2, true, true));
+
+        // A re-saved file is read again; the other comes from the cache with the same result.
+        fs::write(r.join("SM_Crate.obj"), b"v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\nf 1 2 3\nf 2 4 3\n").unwrap();
+        let second = match_assets_with(r, &env).unwrap();
+        assert_eq!((second.read_files, second.cached_files), (1, 1));
+        let best = |rep: &MatchReport| rep.sets[rep.meshes[0].slots[0].candidates[0].set].name.clone();
+        assert_eq!(best(&first), best(&second));
+
+        let stop = AtomicBool::new(true);
+        let cancelled = MatchEnv { cancel: Some(&stop), ..Default::default() };
+        assert_eq!(match_assets_with(r, &cancelled).unwrap_err(), "Cancelled");
     }
 
     #[test]

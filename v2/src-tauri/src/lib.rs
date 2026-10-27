@@ -16,6 +16,7 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
         .manage(LogBus::default())
         .manage(commands::blender_cmd::BlenderJob::default())
+        .manage(commands::matcher_cmd::MatcherState::default())
         .setup(|app| {
             let handle = app.handle();
             logbus::emit(
@@ -49,7 +50,11 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::tools_cmd::find_duplicate_assets,
             commands::tools_cmd::find_unused_textures,
             commands::tools_cmd::find_texture_sets,
-            commands::tools_cmd::match_assets,
+            commands::matcher_cmd::match_assets,
+            commands::matcher_cmd::matcher_estimate,
+            commands::matcher_cmd::cancel_matching,
+            commands::matcher_cmd::clear_mesh_cache,
+            commands::matcher_cmd::drive_mounts,
             commands::tools_cmd::pack_orm_batch,
             commands::tools_cmd::convert_textures,
             commands::tools_cmd::inspect_meshes,

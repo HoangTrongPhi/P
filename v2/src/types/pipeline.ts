@@ -415,7 +415,28 @@ export interface MatchReport {
   orphanSets: number[];
   /** Textures without a recognisable map suffix. */
   looseTextures: string[];
+  /** Mesh files read this time (downloaded, on Google Drive). */
+  readFiles: number;
+  /** Mesh files whose facts came from the cache. */
+  cachedFiles: number;
   elapsedMs: number;
+}
+
+/** What a match would read; names and sizes only, nothing downloaded. */
+export interface ReadEstimate {
+  meshes: number;
+  bytes: number;
+  cachedMeshes: number;
+  cachedBytes: number;
+  /** Streamed by Google Drive for desktop: reading a file downloads it. */
+  onDrive: boolean;
+}
+
+/** A Google Drive for desktop mount (`G:\`) with its shared drives. */
+export interface DriveMount {
+  root: string;
+  myDrive: string | null;
+  sharedDrives: string[];
 }
 
 // ---------------------------------------------------------------- kit assembler

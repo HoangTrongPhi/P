@@ -1,13 +1,13 @@
 import { ArrowUpLeft, Box, ChartBar, Download, FileImage, FolderOpen, HardDrive, Image, Layers, Loader2, Package, RefreshCw } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
-import { pickOne } from "../../lib/dialogs";
 import { dirname, humanSize, joinPath } from "../../lib/pathUtil";
 import { exportReport, type ReportDoc } from "../../lib/reports";
 import { packageRows, ROOT_PACKAGE, TYPES, typeTotals, useDashboardStore, type Metric, type PackageRow, type Totals } from "../../stores/dashboardStore";
 import type { AssetCategory } from "../../types/pipeline";
 import { EmptyState, PathText, Segmented } from "../ui/Controls";
 import { GlassCard } from "../ui/GlassCard";
+import { LocationPicker } from "../ui/LocationPicker";
 
 const TYPE_INFO: Record<AssetCategory, { label: string; color: string }> = {
   mesh: { label: "Meshes", color: "var(--color-viz-mesh)" },
@@ -69,7 +69,7 @@ export function DashboardTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
-      <GlassCard className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+      <GlassCard className="relative z-20 flex flex-wrap items-center gap-2 px-4 py-2.5">
         <FolderOpen className="size-4 shrink-0 text-ink-faint" />
         {folder ? <PathText path={folder} className="min-w-0 flex-1 text-ink" /> : <span className="flex-1 text-[12.5px] text-ink-faint">Drop an asset folder — a local drive or a Google Drive path like G:\Shared drives\…</span>}
         {folder && (
@@ -82,9 +82,7 @@ export function DashboardTab() {
             </button>
           </>
         )}
-        <button type="button" className="btn" onClick={async () => { const f = await pickOne("folder"); if (f) void load(f); }}>
-          Choose…
-        </button>
+        <LocationPicker onPick={(f) => void load(f)} />
         <Segmented<Metric>
           value={metric}
           onChange={setMetric}
