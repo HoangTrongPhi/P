@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### V2 pipeline features
+- **Kit Assembler** (Asset Matcher → "Assemble kit…", or "Assemble kit from manifest…" in the
+  command palette): copies the matched meshes and texture sets into a destination project as
+  `Meshes/` + `Textures/` (optionally per package folder), renamed to UE5 (`SM_` / `T_*_D`, `_N`,
+  `_ORM`) or Unity conventions or kept as is. Roughness / gloss / metallic / AO are packed into an
+  ORM map; texture paths inside the copied FBX, OBJ-MTL and glTF files are rewritten to the copied
+  textures (relative). Unconfirmed matches are left out unless asked; files already in the
+  destination are kept unless overwrite is on; two sources never share a target name. The plan
+  is shown (dry run) before anything is written, the delivery folder is only read, and a
+  `kit_manifest.json` records the result. Checked on the sample assets: Blender loads every
+  copied FBX / OBJ with its textures found.
 - **Asset Matcher** (Ctrl+8): for an artist delivery folder (local or a Google Drive path), every
   mesh and material slot is matched to a texture set with a 0-100 score and the reasons. Texture
   paths stored in FBX / OBJ-MTL / glTF count first (a path that resolves to the file is exact; a

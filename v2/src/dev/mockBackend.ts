@@ -15,6 +15,76 @@ const FILES = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A saved manifest, as the Asset Matcher would write it for the mock delivery. */
+function mockMatchManifest() {
+  const root = `${DRIVE_ROOT}\\Wall Modular`;
+  const r = mockMatchReport(root);
+  const rel = (p: string) => p.slice(root.length + 1).replace(/\\/g, "/");
+  return {
+    root,
+    assets: r.meshes.map((m) => ({
+      mesh: rel(m.path),
+      slots: m.slots.map((s) => {
+        const set = s.candidates[0] ? r.sets[s.candidates[0].set] : null;
+        return {
+          slot: s.name,
+          decision: s.status === "review" ? "open" : "auto",
+          textureSet: set && { name: set.name, folder: rel(set.dir), maps: Object.fromEntries(Object.entries(set.maps).map(([k, p]) => [k, rel(p)])) },
+        };
+      }),
+    })),
+  };
+}
+
+/** What `assemble_kit` would plan / write for a manifest (UE5-style names only). */
+function mockKitReport(
+  manifest: { root: string; assets: { mesh: string; slots: { slot: string; decision: string; textureSet: { name: string; maps: Record<string, string> } | null }[] }[] },
+  o: { dest: string; meshDir: string; textureDir: string; packOrm: boolean; includeOpen: boolean; dryRun: boolean; naming: string },
+) {
+  const suffix: Record<string, string> = { baseColor: "D", normal: "N", orm: "ORM", roughness: "R", gloss: "G", metallic: "M", ao: "AO", emissive: "E", height: "H", opacity: "A", specular: "S" };
+  const packed = ["roughness", "gloss", "metallic", "ao"];
+  const status = o.dryRun ? "planned" : "written";
+  const sep = "\\";
+  const items: { kind: string; sources: string[]; target: string; status: string; note: string | null }[] = [];
+  const done = new Set<string>();
+  const skippedSlots: string[] = [];
+  const name = (f: string) => f.split("/").pop()!;
+  for (const a of manifest.assets) {
+    for (const s of a.slots) {
+      const set = s.textureSet;
+      if (!set) continue;
+      if (s.decision === "open" && !o.includeOpen) {
+        skippedSlots.push(`${a.mesh} / ${s.slot}: match not confirmed`);
+        continue;
+      }
+      if (done.has(set.name)) continue;
+      done.add(set.name);
+      const pack = o.packOrm && !set.maps.orm && packed.some((k) => set.maps[k]);
+      for (const [k, f] of Object.entries(set.maps)) {
+        if (pack && packed.includes(k)) continue;
+        const target = o.naming === "keep" ? name(f) : `T_${set.name}_${suffix[k]}.${f.split(".").pop()}`;
+        items.push({ kind: "texture", sources: [`${manifest.root}${sep}${f}`], target: `${o.dest}${sep}${o.textureDir}${sep}${target}`, status, note: null });
+      }
+      if (pack) items.push({ kind: "orm", sources: packed.filter((k) => set.maps[k]).map((k) => set.maps[k]), target: `${o.dest}${sep}${o.textureDir}${sep}T_${set.name}_ORM.png`, status, note: o.dryRun ? null : "2048x2048" });
+    }
+    const mesh = name(a.mesh);
+    items.push({ kind: "mesh", sources: [`${manifest.root}${sep}${a.mesh}`], target: `${o.dest}${sep}${o.meshDir}${sep}${o.naming === "keep" ? mesh : mesh.replace(/^SM_/, "SM_")}`, status, note: o.dryRun ? null : "2 texture path(s) relinked" });
+  }
+  // Pretend one file is already in the destination.
+  if (items[0]) items[0] = { ...items[0], status: "skipped", note: "already in the destination" };
+  return {
+    dest: o.dest,
+    items,
+    relinked: o.dryRun ? 0 : items.filter((i) => i.kind === "mesh").length * 2,
+    skippedSlots,
+    warnings: ["SM_Wall_Straight_02.fbx: references wall_ao.png which went into the ORM map; left as is"],
+    bytesWritten: o.dryRun ? 0 : 48_500_000,
+    kitManifest: o.dryRun ? null : `${o.dest}${sep}kit_manifest.json`,
+    dryRun: o.dryRun,
+    elapsedMs: o.dryRun ? 12 : 840,
+  };
+}
+
 /** A fake Asset Matcher result covering every status. */
 function mockMatchReport(root: string) {
   const T = `${root}\\Textures`;
@@ -201,6 +271,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           const o = a.options ?? {};
           const tab = useAppStore.getState().activeTab;
           if (o.directory && tab === "dashboard") return DRIVE_ROOT;
+          if (o.directory && tab === "matcher" && document.getElementById("kit-title")) return "D:\\UE5\\Vaultbreaker\\Content\\Environment";
           if (o.directory && tab === "matcher") return `${DRIVE_ROOT}\\Wall Modular`;
           if (o.directory) return tab === "preview" || tab === "tools" ? PREVIEW_ROOT : ROOT;
           const ext = o.filters?.[0]?.extensions?.[0];
@@ -377,6 +448,12 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
         case "save_text_file":
           console.info("mockBackend: save_text_file", a.path, `${String(a.contents).length} chars`);
           return null;
+        case "load_asset_manifest":
+          await sleep(150);
+          return mockMatchManifest();
+        case "assemble_kit":
+          await sleep(a.options.dryRun ? 200 : 900);
+          return mockKitReport(a.manifest, a.options);
         case "load_recipe":
           return { name: "Loaded recipe", steps: [{ kind: "inspectMeshes", triBudget: 20000 }, { kind: "findDuplicates" }] };
         case "run_recipe": {

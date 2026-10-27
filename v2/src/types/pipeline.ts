@@ -418,6 +418,65 @@ export interface MatchReport {
   elapsedMs: number;
 }
 
+// ---------------------------------------------------------------- kit assembler
+
+/** The parts of `asset_manifest.json` the assembler reads (paths relative to `root`). */
+export interface AssetManifest {
+  root: string;
+  assets: {
+    mesh: string;
+    slots: {
+      slot: string;
+      textureSet: { name: string; folder: string; maps: Partial<Record<MapKind, string>> } | null;
+      /** auto | manual | open (still needs a decision). */
+      decision: string;
+    }[];
+  }[];
+}
+
+/** keep: original names; ue5: SM_Name / T_Name_D; unity: Name / Name_BaseColor. */
+export type KitNaming = "keep" | "ue5" | "unity";
+
+export interface KitOptions {
+  dest: string;
+  naming: KitNaming;
+  meshDir: string;
+  textureDir: string;
+  /** `<dest>/<delivery top folder>/Meshes/…` */
+  keepPackages: boolean;
+  /** Pack roughness / gloss / metallic / AO into one ORM map (inputs are then not copied). */
+  packOrm: boolean;
+  /** Point texture paths inside copied meshes at the copied textures. */
+  relink: boolean;
+  /** Also take slots whose match is still open. */
+  includeOpen: boolean;
+  overwrite: boolean;
+  dryRun: boolean;
+}
+
+export type KitKind = "mesh" | "texture" | "orm" | "sidecar";
+export type KitStatus = "planned" | "written" | "skipped" | "failed";
+
+export interface KitItem {
+  kind: KitKind;
+  sources: string[];
+  target: string;
+  status: KitStatus;
+  note: string | null;
+}
+
+export interface KitReport {
+  dest: string;
+  items: KitItem[];
+  relinked: number;
+  skippedSlots: string[];
+  warnings: string[];
+  bytesWritten: number;
+  kitManifest: string | null;
+  dryRun: boolean;
+  elapsedMs: number;
+}
+
 // ---------------------------------------------------------------- recipes
 
 export type RecipeStep =

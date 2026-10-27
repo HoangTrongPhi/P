@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppInfo,
+  AssetManifest,
   BlenderInstall,
   BlenderPackConfig,
   BlenderPackReport,
@@ -12,6 +13,8 @@ import type {
   FbxFileInfo,
   FbxFixPlan,
   FbxFixResult,
+  KitOptions,
+  KitReport,
   LogEntry,
   MatchReport,
   MeshStats,
@@ -36,6 +39,7 @@ export const EVENTS = {
   log: "log://entry",
   blenderProgress: "blender://progress",
   recipeProgress: "recipe://progress",
+  kitProgress: "kit://progress",
 } as const;
 
 /** True inside the Tauri webview; false when the UI runs in a plain browser via `npm run dev`. */
@@ -155,6 +159,19 @@ export function findTextureSets(folder: string): Promise<TextureSetReport> {
 
 export function matchAssets(folder: string): Promise<MatchReport> {
   return invoke<MatchReport>("match_assets", { folder });
+}
+
+export function loadAssetManifest(path: string): Promise<AssetManifest> {
+  return invoke<AssetManifest>("load_asset_manifest", { path });
+}
+
+export function assembleKit(manifest: AssetManifest, options: KitOptions): Promise<KitReport> {
+  return invoke<KitReport>("assemble_kit", { manifest, options });
+}
+
+/** Same payload shape as recipe progress: `message` is the file being written. */
+export function onKitProgress(handler: (p: RecipeProgress) => void): Promise<UnlistenFn> {
+  return listen<RecipeProgress>(EVENTS.kitProgress, (e) => handler(e.payload));
 }
 
 export function packOrmBatch(configs: OrmPackConfig[]): Promise<OrmBatchItem[]> {

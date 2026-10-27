@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUpLeft, Box, Check, CheckCheck, CircleSlash, Download, FileJson, FolderOpen, Layers, Link2, Loader2, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { AlertTriangle, ArrowUpLeft, Box, Check, CheckCheck, CircleSlash, Download, FileJson, FolderOpen, Layers, Link2, Loader2, PackageCheck, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { pickOne } from "../../lib/dialogs";
@@ -7,6 +7,7 @@ import { basename, dirname } from "../../lib/pathUtil";
 import { MAP_LABELS } from "../../lib/reportBuilders";
 import { exportReport, relPath, type ReportDoc } from "../../lib/reports";
 import { uiLog } from "../../stores/appStore";
+import { useKitStore } from "../../stores/kitStore";
 import { choiceFor, needsDecision, slotKey, useMatcherStore, type MatchFilter, type Override } from "../../stores/matcherStore";
 import type { MapKind, MatchReport, MatchStatus, SlotMatch } from "../../types/pipeline";
 import { EmptyState, PathText, Segmented } from "../ui/Controls";
@@ -60,6 +61,7 @@ function matches(report: MatchReport, mi: number, slot: SlotMatch, query: string
 
 export function MatcherTab() {
   const { folder, report, loading, filter, query, overrides, selected, load, refresh, setFilter, setQuery, acceptAllBest, saveManifest } = useMatcherStore();
+  const { openFromMatcher, openManifestFile } = useKitStore();
 
   const counts = useMemo(() => {
     const c = { exact: 0, likely: 0, review: 0, none: 0, open: 0, openReview: 0, slots: 0, missingRefs: 0 };
@@ -98,8 +100,16 @@ export function MatcherTab() {
         <button type="button" className="btn" disabled={!report} onClick={() => report && void exportReport(matcherReport(report, overrides))} title="Save as HTML or CSV">
           <Download className="size-3.5" /> Export
         </button>
-        <button type="button" className="btn btn-primary" disabled={!report} onClick={() => void saveManifest()} title="asset_manifest.json: every mesh slot with its texture set">
+        <button type="button" className="btn" disabled={!report} onClick={() => void saveManifest()} title="asset_manifest.json: every mesh slot with its texture set">
           <FileJson className="size-3.5" /> Save manifest
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => (report ? openFromMatcher() : void openManifestFile())}
+          title={report ? "Copy the matched meshes and textures into a clean project layout" : "Assemble from a saved asset_manifest.json"}
+        >
+          <PackageCheck className="size-3.5" /> {report ? "Assemble kit…" : "Assemble from manifest…"}
         </button>
       </GlassCard>
 

@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense, type ComponentType } from "react";
 import { AboutDialog } from "./components/layout/AboutDialog";
+import { KitAssemblerDialog } from "./components/tools/KitAssemblerDialog";
 import { CommandPalette } from "./components/layout/CommandPalette";
 import { HeaderDashboard } from "./components/layout/HeaderDashboard";
 import { LogDrawer } from "./components/layout/LogDrawer";
@@ -62,6 +63,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <AboutDialog />
+      <KitAssemblerDialog />
     </div>
   );
 }

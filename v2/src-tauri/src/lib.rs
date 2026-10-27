@@ -55,6 +55,8 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::tools_cmd::inspect_meshes,
             commands::recipe_cmd::load_recipe,
             commands::recipe_cmd::run_recipe,
+            commands::kit_cmd::load_asset_manifest,
+            commands::kit_cmd::assemble_kit,
         ])
 }
 

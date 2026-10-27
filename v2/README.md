@@ -11,7 +11,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 | 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
 | 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder, unused textures | Done (asset:// loading not yet confirmed in the desktop app) |
 | 4 | Tests and release build | Rust + IPC tests in place; release build not started |
-| 5 | Asset Matcher (mesh ↔ texture set with confidence, review, `asset_manifest.json`), Dashboard (assets by type and package), About & contact dialog (`src/lib/author.ts`), texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
+| 5 | Asset Matcher (mesh ↔ texture set with confidence, review, `asset_manifest.json`), Kit Assembler (manifest → clean UE5 / Unity layout, ORM packing, relinked meshes), Dashboard (assets by type and package), About & contact dialog (`src/lib/author.ts`), texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
 
 ## Prerequisites (Windows)
 
@@ -69,6 +69,8 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 | `find_duplicate_assets(folder)` | Size pre-filter, then parallel XXH3-128 |
 | `find_unused_textures(folder, includeBlend?, blenderPath?)` | Textures no FBX / MTL / glTF / GLB references; `includeBlend` also reads every `.blend` through headless Blender |
 | `match_assets(folder)` | Every mesh / material slot matched to a texture set: score 0-100, reasons, exact / likely / review / none, unused sets |
+| `load_asset_manifest(path)` | Read an `asset_manifest.json` saved by the Asset Matcher |
+| `assemble_kit(manifest, options)` | Copy a manifest into `Meshes/` + `Textures/` with UE5 / Unity names, ORM packing and relinked FBX / MTL / glTF paths; dry run plans only; emits `kit://progress` |
 | `find_texture_sets(folder)` | Textures grouped into material sets by map suffix, missing maps, ORM-ready sets |
 | `pack_orm_batch(configs)` | Several ORM textures in parallel, one result per output |
 | `convert_textures(paths, options)` | Resize / power of two / normal green flip / PNG, TGA, JPG, uncompressed DDS with mips; dry run |

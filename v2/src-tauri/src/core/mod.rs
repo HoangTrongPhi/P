@@ -5,6 +5,7 @@ pub mod blender_runner;
 pub mod duplicate_finder;
 pub mod fbx;
 pub mod image_ops;
+pub mod kit_assembler;
 pub mod mesh_stats;
 pub mod recipe;
 pub mod renamer;

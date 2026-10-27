@@ -4,6 +4,7 @@
 pub mod app_cmd;
 pub mod blender_cmd;
 pub mod fbx_cmd;
+pub mod kit_cmd;
 pub mod preview_cmd;
 pub mod recipe_cmd;
 pub mod renamer_cmd;
@@ -56,6 +57,34 @@ mod contract_tests {
         let minimal: FbxFixPlan = serde_json::from_value(json!({ "paths": [] })).unwrap();
         assert_eq!(minimal.options.mode, FixMode::Relative);
         assert_eq!(minimal.options.subfolder, "textures");
+    }
+
+    #[test]
+    fn asset_manifest_and_kit_options_from_ts() {
+        use crate::core::kit_assembler::{AssetManifest, KitOptions, Naming};
+        use crate::core::texture_sets::MapKind;
+        // As written by `buildManifest` in `src/stores/matcherStore.ts`; extra fields are ignored.
+        let m: AssetManifest = serde_json::from_value(json!({
+            "format": "project-p.asset-manifest", "version": 1, "root": "G:/Drive/Wall", "generated": "2026-10-27T00:00:00Z",
+            "assets": [{
+                "mesh": "Meshes/SM_A.fbx",
+                "slots": [
+                    { "slot": "M_A", "isMaterial": true, "confidence": 93, "status": "likely", "decision": "auto",
+                      "textureSet": { "name": "A", "folder": "Textures", "maps": { "baseColor": "Textures/A_D.png", "orm": "Textures/A_ORM.png" }, "missingMaps": [] } },
+                    { "slot": "M_B", "isMaterial": true, "confidence": null, "status": "none", "decision": "open", "textureSet": null }
+                ],
+                "missingReferences": [], "error": null
+            }],
+            "unassignedTextureSets": [], "looseTextures": []
+        }))
+        .unwrap();
+        let set = m.assets[0].slots[0].texture_set.as_ref().unwrap();
+        assert_eq!(set.maps.keys().copied().collect::<Vec<_>>(), [MapKind::BaseColor, MapKind::Orm]);
+        assert!(m.assets[0].slots[1].texture_set.is_none());
+
+        let o: KitOptions = serde_json::from_value(json!({ "dest": "D:/Kit" })).unwrap();
+        assert_eq!((o.naming, o.mesh_dir.as_str(), o.texture_dir.as_str()), (Naming::Ue5, "Meshes", "Textures"));
+        assert!(o.pack_orm && o.relink && !o.overwrite && !o.dry_run && !o.include_open && !o.keep_packages);
     }
 
     #[test]

@@ -16,7 +16,7 @@ use super::fbx::doctor::{referenced_basenames, referenced_paths};
 use super::scanner::{normalize_exts, scan, AssetFile};
 use crate::utils::paths::{ext_lower, TEXTURE_EXTS};
 
-static MTL_MAP_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^\s*(?:map_\w+|bump|disp|decal|refl|norm)\s+(.+)$").unwrap());
+pub(crate) static MTL_MAP_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^\s*(?:map_\w+|bump|disp|decal|refl|norm)\s+(.+)$").unwrap());
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +41,7 @@ pub(crate) fn base_lower(s: &str) -> String {
 }
 
 /// `%20`-style escapes in glTF URIs.
-fn percent_decode(s: &str) -> String {
+pub(crate) fn percent_decode(s: &str) -> String {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;

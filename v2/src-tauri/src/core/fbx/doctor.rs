@@ -657,14 +657,7 @@ pub fn fix_fbx(path: &Path, opts: &FixOptions) -> FbxResult<FixReport> {
             continue;
         }
         report.changes.push(PathChange { field: r.field.clone(), owner: r.owner.clone(), old: r.value_str(), new: lossy(&new_value) });
-        match (&mut doc, &r.locator) {
-            (Doc::Binary { doc, .. }, Locator::Binary { node_path, prop }) => {
-                let node = doc.node_mut(node_path).ok_or_else(|| FbxError("Internal error: node path vanished".into()))?;
-                node.props[*prop] = FbxProperty::string(&new_value, b'S');
-            }
-            (Doc::Ascii(doc), Locator::Ascii { line }) => ascii_set(doc, *line, &new_value)?,
-            _ => return Err(FbxError("Internal error: locator / document mismatch".into())),
-        }
+        set_value(&mut doc, &r.locator, &new_value)?;
     }
 
     if opts.dry_run || (report.changes.is_empty() && report.copied.is_empty()) {
@@ -686,18 +679,55 @@ pub fn fix_fbx(path: &Path, opts: &FixOptions) -> FbxResult<FixReport> {
             }
             report.backup = Some(bak);
         }
-        let data = match &doc {
-            Doc::Binary { doc, body_end } => serialize_binary(doc, Some(*body_end)),
-            Doc::Ascii(doc) => doc.lines.concat(),
-        };
-        let mut tmp_name = path.file_name().unwrap_or_default().to_os_string();
-        tmp_name.push(".tmp");
-        let tmp = path.with_file_name(tmp_name);
-        fs::write(&tmp, data)?;
-        fs::rename(&tmp, path)?;
+        write_doc(path, &doc)?;
         report.written = true;
     }
     Ok(report)
+}
+
+fn set_value(doc: &mut Doc, locator: &Locator, value: &[u8]) -> FbxResult<()> {
+    match (doc, locator) {
+        (Doc::Binary { doc, .. }, Locator::Binary { node_path, prop }) => {
+            let node = doc.node_mut(node_path).ok_or_else(|| FbxError("Internal error: node path vanished".into()))?;
+            node.props[*prop] = FbxProperty::string(value, b'S');
+        }
+        (Doc::Ascii(doc), Locator::Ascii { line }) => ascii_set(doc, *line, value)?,
+        _ => return Err(FbxError("Internal error: locator / document mismatch".into())),
+    }
+    Ok(())
+}
+
+/// Write through a temporary file so a failed write never leaves half an FBX.
+fn write_doc(path: &Path, doc: &Doc) -> FbxResult<()> {
+    let data = match doc {
+        Doc::Binary { doc, body_end } => serialize_binary(doc, Some(*body_end)),
+        Doc::Ascii(doc) => doc.lines.concat(),
+    };
+    let mut tmp_name = path.file_name().unwrap_or_default().to_os_string();
+    tmp_name.push(".tmp");
+    let tmp = path.with_file_name(tmp_name);
+    fs::write(&tmp, data)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+/// Point texture references at new files by name: `names` maps a lower-case file name to the
+/// path to store. Meant for copies the caller just made, so no backup is kept.
+pub fn relink_fbx(path: &Path, names: &HashMap<String, String>) -> FbxResult<Vec<PathChange>> {
+    let Loaded { mut doc, refs } = load_and_resolve(path, &[], false)?;
+    let mut changes = Vec::new();
+    for r in refs.iter().filter(|r| r.kind != PathKind::Empty) {
+        let Some(new) = names.get(&r.basename().to_lowercase()) else { continue };
+        if new.as_bytes() == r.value.as_slice() {
+            continue;
+        }
+        set_value(&mut doc, &r.locator, new.as_bytes())?;
+        changes.push(PathChange { field: r.field.clone(), owner: r.owner.clone(), old: r.value_str(), new: new.clone() });
+    }
+    if !changes.is_empty() {
+        write_doc(path, &doc)?;
+    }
+    Ok(changes)
 }
 
 pub fn backup_path(path: &Path) -> PathBuf {
