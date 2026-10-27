@@ -394,6 +394,13 @@ fn load_and_resolve(path: &Path, search_dirs: &[PathBuf], search_parent: bool) -
     Ok(Loaded { doc, refs })
 }
 
+/// Texture paths exactly as an FBX stores them (no disk lookups).
+pub fn referenced_paths(path: &Path) -> FbxResult<Vec<String>> {
+    let data = fs::read(path)?;
+    let refs = if is_binary(&data) { binary_refs(&parse_binary(&data)?) } else { ascii_refs(&parse_ascii(&data)?) };
+    Ok(refs.iter().filter(|r| r.kind != PathKind::Empty).map(TextureRef::value_str).collect())
+}
+
 /// Lower-cased texture file names referenced by an FBX (no disk lookups; for usage reports).
 pub fn referenced_basenames(path: &Path) -> FbxResult<Vec<String>> {
     let data = fs::read(path)?;

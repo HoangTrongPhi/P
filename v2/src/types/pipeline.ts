@@ -1,7 +1,7 @@
 // IPC contracts shared with the Rust backend (ARCHITECTURE_V2_TAURI_RUST.md §5.2).
 // Rust structs serialize with `#[serde(rename_all = "camelCase")]` to match these names.
 
-export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools" | "recipes" | "dashboard";
+export type TabId = "renamer" | "fbx" | "blender" | "preview" | "tools" | "recipes" | "dashboard" | "matcher";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -362,6 +362,8 @@ export interface MeshStats {
   triangles: number;
   polygons: number;
   materials: number;
+  /** Material (slot) names in file order. */
+  materialNames: string[];
   uvSets: number;
   hasNormals: boolean;
   /** Local space (node transforms not applied). */
@@ -371,6 +373,49 @@ export interface MeshStats {
   upAxis: string | null;
   warnings: string[];
   error: string | null;
+}
+
+// ---------------------------------------------------------------- asset matcher
+
+/** exact: the mesh file references the set; likely: clear winner by name; review: close call; none: no candidate. */
+export type MatchStatus = "exact" | "likely" | "review" | "none";
+
+export interface MatchCandidate {
+  /** Index into `MatchReport.sets`. */
+  set: number;
+  /** 0-100. */
+  score: number;
+  reasons: string[];
+}
+
+export interface SlotMatch {
+  /** Material name, or the mesh name when the file has no materials. */
+  name: string;
+  isMaterial: boolean;
+  /** Best first. */
+  candidates: MatchCandidate[];
+  status: MatchStatus;
+}
+
+export interface MeshMatch {
+  path: string;
+  /** Texture file names the mesh references (lower case). */
+  references: string[];
+  /** Referenced names with no texture under the folder. */
+  missingReferences: string[];
+  slots: SlotMatch[];
+  error: string | null;
+}
+
+export interface MatchReport {
+  root: string;
+  meshes: MeshMatch[];
+  sets: TextureSet[];
+  /** Sets no slot picked as its best match. */
+  orphanSets: number[];
+  /** Textures without a recognisable map suffix. */
+  looseTextures: string[];
+  elapsedMs: number;
 }
 
 // ---------------------------------------------------------------- recipes

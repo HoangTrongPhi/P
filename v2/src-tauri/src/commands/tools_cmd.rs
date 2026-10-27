@@ -6,6 +6,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
 use super::blender_cmd::script_path;
+use crate::core::asset_matcher::{match_assets as matcher, MatchReport, MatchStatus};
 use crate::core::blender_runner::{best_blender, blend_dependencies};
 use crate::core::duplicate_finder::{find_duplicates, DuplicateReport};
 use crate::core::image_ops::{pack_orm, OrmPackConfig};
@@ -122,6 +123,35 @@ pub async fn find_texture_sets<R: Runtime>(app: AppHandle<R>, folder: String) ->
     let incomplete = rep.sets.iter().filter(|s| !s.missing.is_empty()).count();
     let packable = rep.sets.iter().filter(|s| s.can_pack_orm).count();
     logbus::emit(&app, Level::Info, "tools", format!("{} texture set(s), {incomplete} incomplete, {packable} ready for ORM packing", rep.sets.len()));
+    Ok(rep)
+}
+
+/// Which texture set goes with which mesh / material slot, with a confidence score per match.
+#[tauri::command]
+pub async fn match_assets<R: Runtime>(app: AppHandle<R>, folder: String) -> Result<MatchReport, String> {
+    let root = require_dir(&folder)?;
+    let rep = tauri::async_runtime::spawn_blocking(move || matcher(&root)).await.map_err(|e| e.to_string())?;
+    let slots: Vec<MatchStatus> = rep.meshes.iter().flat_map(|m| m.slots.iter().map(|s| s.status)).collect();
+    let n = |st: MatchStatus| slots.iter().filter(|&&s| s == st).count();
+    logbus::emit(
+        &app,
+        Level::Info,
+        "matcher",
+        format!(
+            "{} mesh(es), {} slot(s): {} exact, {} likely, {} to review, {} unmatched; {} texture set(s) unused ({} ms)",
+            rep.meshes.len(),
+            slots.len(),
+            n(MatchStatus::Exact),
+            n(MatchStatus::Likely),
+            n(MatchStatus::Review),
+            n(MatchStatus::None),
+            rep.orphan_sets.len(),
+            rep.elapsed_ms
+        ),
+    );
+    for m in rep.meshes.iter().filter(|m| m.error.is_some()) {
+        logbus::emit(&app, Level::Warn, "matcher", format!("{}: {}", m.path.display(), m.error.as_deref().unwrap_or_default()));
+    }
     Ok(rep)
 }
 

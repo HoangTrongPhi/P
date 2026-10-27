@@ -7,6 +7,7 @@ import { LogDrawer } from "./components/layout/LogDrawer";
 import { NavigationRail } from "./components/layout/NavigationRail";
 import { BlenderTab } from "./components/tabs/BlenderTab";
 import { DashboardTab } from "./components/tabs/DashboardTab";
+import { MatcherTab } from "./components/tabs/MatcherTab";
 import { FbxDoctorTab } from "./components/tabs/FbxDoctorTab";
 import { RecipesTab } from "./components/tabs/RecipesTab";
 import { RenamerTab } from "./components/tabs/RenamerTab";
@@ -30,6 +31,7 @@ const TABS: Record<TabId, ComponentType> = {
   tools: ToolsTab,
   recipes: RecipesTab,
   dashboard: DashboardTab,
+  matcher: MatcherTab,
 };
 
 export default function App() {

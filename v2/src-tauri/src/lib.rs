@@ -49,6 +49,7 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::tools_cmd::find_duplicate_assets,
             commands::tools_cmd::find_unused_textures,
             commands::tools_cmd::find_texture_sets,
+            commands::tools_cmd::match_assets,
             commands::tools_cmd::pack_orm_batch,
             commands::tools_cmd::convert_textures,
             commands::tools_cmd::inspect_meshes,

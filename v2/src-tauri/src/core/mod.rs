@@ -1,5 +1,6 @@
 //! Pure Rust domain logic, independent of Tauri so it can be unit-tested directly.
 
+pub mod asset_matcher;
 pub mod blender_runner;
 pub mod duplicate_finder;
 pub mod fbx;

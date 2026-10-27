@@ -13,6 +13,7 @@ import type {
   FbxFixPlan,
   FbxFixResult,
   LogEntry,
+  MatchReport,
   MeshStats,
   OrmBatchItem,
   OrmPackConfig,
@@ -150,6 +151,10 @@ export function findUnusedTextures(folder: string, includeBlend = false, blender
 
 export function findTextureSets(folder: string): Promise<TextureSetReport> {
   return invoke<TextureSetReport>("find_texture_sets", { folder });
+}
+
+export function matchAssets(folder: string): Promise<MatchReport> {
+  return invoke<MatchReport>("match_assets", { folder });
 }
 
 export function packOrmBatch(configs: OrmPackConfig[]): Promise<OrmBatchItem[]> {

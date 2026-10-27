@@ -15,6 +15,51 @@ const FILES = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A fake Asset Matcher result covering every status. */
+function mockMatchReport(root: string) {
+  const T = `${root}\\Textures`;
+  const M = `${root}\\Meshes`;
+  const set = (name: string, maps: Record<string, string>, missing: string[] = [], dir = T) => ({
+    dir,
+    name,
+    maps: Object.fromEntries(Object.entries(maps).map(([k, f]) => [k, `${dir}\\${f}`])),
+    extra: [],
+    missing,
+    canPackOrm: false,
+    suggestedOrm: `${dir}\\T_${name.replace(/_/g, "")}_ORM.png`,
+  });
+  const sets = [
+    set("Wall_Straight", { baseColor: "T_Wall_Straight_BaseColor.png", normal: "T_Wall_Straight_Normal.png", orm: "T_Wall_Straight_ORM.png" }),
+    set("Wall_Corner", { baseColor: "T_Wall_Corner_BaseColor.png", normal: "T_Wall_Corner_Normal.png", orm: "T_Wall_Corner_ORM.png" }),
+    set("Wall_Trim", { baseColor: "T_Wall_Trim_D.png", normal: "T_Wall_Trim_N.png" }, ["roughness"]),
+    set("Brick_Red", { baseColor: "T_Brick_Red_BaseColor.png", normal: "T_Brick_Red_Normal.png", orm: "T_Brick_Red_ORM.png" }),
+    set("Brick_Old", { baseColor: "T_Brick_Old_BaseColor.png", normal: "T_Brick_Old_Normal.png" }, ["roughness"]),
+    set("Pillar", { baseColor: "T_Pillar_BaseColor.png", normal: "T_Pillar_Normal.png", orm: "T_Pillar_ORM.png" }),
+    set("Concrete_Dirty", { baseColor: "T_Concrete_Dirty_D.png", normal: "T_Concrete_Dirty_N.png", orm: "T_Concrete_Dirty_ORM.png" }),
+    set("Graffiti_Decal", { baseColor: "T_Graffiti_Decal_D.png", opacity: "T_Graffiti_Decal_Alpha.png" }, ["normal", "roughness"], `${root}\\Decals`),
+  ];
+  const c = (s: number, score: number, ...reasons: string[]) => ({ set: s, score, reasons });
+  const slot = (name: string, status: string, candidates: ReturnType<typeof c>[], isMaterial = true) => ({ name, isMaterial, status, candidates });
+  const mesh = (file: string, slots: ReturnType<typeof slot>[], references: string[] = [], missingReferences: string[] = [], error: string | null = null) => ({ path: `${M}\\${file}`, references, missingReferences, slots, error });
+  return {
+    root,
+    sets,
+    meshes: [
+      mesh("SM_Wall_Straight_01.fbx", [slot("M_Wall_Straight", "exact", [c(0, 100, "referenced by the mesh file (t_wall_straight_basecolor.png)", "material: same name"), c(1, 52, "material: shares name words", "nearby folder")])], ["t_wall_straight_basecolor.png", "t_wall_straight_normal.png"]),
+      mesh("SM_Wall_Straight_02.fbx", [slot("M_Wall_Straight", "exact", [c(0, 100, "referenced by the mesh file (t_wall_straight_basecolor.png)")])], ["t_wall_straight_basecolor.png", "d:/artist/old/wall_ao.png"], ["d:/artist/old/wall_ao.png"]),
+      mesh("SM_Wall_Corner_01.fbx", [slot("M_Wall_Corner", "likely", [c(1, 93, "material: same name", "nearby folder"), c(0, 48, "material: shares name words", "nearby folder")]), slot("M_Wall_Trim", "likely", [c(2, 93, "material: same name", "nearby folder")])]),
+      mesh("SM_Pillar_A.fbx", [slot("lambert1", "likely", [c(5, 67, "mesh name: shares name words", "nearby folder")])]),
+      mesh("SM_Brick_Wall.obj", [slot("M_Brick", "review", [c(3, 72, "material: name contains the other", "nearby folder"), c(4, 72, "material: name contains the other", "nearby folder")])]),
+      mesh("SM_Wall_Broken_03.fbx", [slot("Material.002", "review", [c(0, 41, "mesh name: shares name words", "nearby folder"), c(1, 41, "mesh name: shares name words", "nearby folder"), c(2, 41, "mesh name: shares name words", "nearby folder")])]),
+      mesh("SM_Rubble_Pile.glb", [slot("rubble_mat", "none", [])]),
+      mesh("SM_Doorframe.fbx", [slot("SM_Doorframe", "none", [], false)], [], [], "Unsupported FBX version 6100 (only 7.x)"),
+    ],
+    orphanSets: [4, 6, 7],
+    looseTextures: [`${T}\\wall_preview.png`, `${root}\\Reference\\moodboard_01.jpg`],
+    elapsedMs: 182,
+  };
+}
+
 /** A fake artist delivery on a shared drive, for the Dashboard tab. */
 const DRIVE_ROOT = "G:\\Shared drives\\Artist Repo\\Vaultbreaker\\3D_Environment";
 function driveFiles() {
@@ -156,6 +201,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           const o = a.options ?? {};
           const tab = useAppStore.getState().activeTab;
           if (o.directory && tab === "dashboard") return DRIVE_ROOT;
+          if (o.directory && tab === "matcher") return `${DRIVE_ROOT}\\Wall Modular`;
           if (o.directory) return tab === "preview" || tab === "tools" ? PREVIEW_ROOT : ROOT;
           const ext = o.filters?.[0]?.extensions?.[0];
           if (o.filters?.[0]?.name === "Assets") return [`${PREVIEW_ROOT}/crate.glb`];
@@ -285,6 +331,10 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
             totalTextures: 14,
             unmatched: [`${T}/sky_studio.hdr`, `${T}/ui_icon.dds`, `${T}/poster.psd`],
           };
+        }
+        case "match_assets": {
+          await sleep(450);
+          return mockMatchReport(String(a.folder));
         }
         case "pack_orm_batch":
           await sleep(400);

@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use serde::Serialize;
 
-use super::fbx::doctor::referenced_basenames;
+use super::fbx::doctor::{referenced_basenames, referenced_paths};
 use super::scanner::{normalize_exts, scan, AssetFile};
 use crate::utils::paths::{ext_lower, TEXTURE_EXTS};
 
@@ -36,7 +36,7 @@ pub struct UnusedReport {
 /// Lower-case texture file names a `.blend` file references.
 pub type BlendReader<'a> = dyn Fn(&Path) -> Result<Vec<String>, String> + Sync + 'a;
 
-fn base_lower(s: &str) -> String {
+pub(crate) fn base_lower(s: &str) -> String {
     s.trim().rsplit(['\\', '/']).next().unwrap_or("").to_lowercase()
 }
 
@@ -59,25 +59,35 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn mtl_refs(text: &str) -> Vec<String> {
+/// Texture paths as written in an MTL file.
+fn mtl_paths(text: &str) -> Vec<String> {
     text.lines()
         .filter_map(|l| MTL_MAP_RE.captures(l))
         // Options like "-bm 1.0" precede the file; the file is the last token.
-        .filter_map(|c| c[1].split_whitespace().last().map(base_lower))
+        .filter_map(|c| c[1].split_whitespace().last().map(str::to_string))
         .collect()
 }
 
-fn gltf_json_refs(json: &serde_json::Value) -> Vec<String> {
+/// Decoded image URIs of a glTF (embedded `data:` images skipped).
+fn gltf_json_paths(json: &serde_json::Value) -> Vec<String> {
     json.get("images")
         .and_then(|i| i.as_array())
         .map(|imgs| {
             imgs.iter()
                 .filter_map(|img| img.get("uri")?.as_str())
                 .filter(|u| !u.starts_with("data:"))
-                .map(|u| base_lower(&percent_decode(u)))
+                .map(percent_decode)
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn mtl_refs(text: &str) -> Vec<String> {
+    mtl_paths(text).iter().map(|p| base_lower(p)).collect()
+}
+
+fn gltf_json_refs(json: &serde_json::Value) -> Vec<String> {
+    gltf_json_paths(json).iter().map(|p| base_lower(p)).collect()
 }
 
 /// JSON chunk of a binary glTF.
@@ -99,6 +109,34 @@ fn file_refs(path: &Path) -> Result<Vec<String>, String> {
             serde_json::from_str(&text).map(|j| gltf_json_refs(&j)).map_err(|e| err(&e))
         }
         "glb" => fs::read(path).map(|b| glb_json(&b).map(|j| gltf_json_refs(&j)).unwrap_or_default()).map_err(|e| err(&e)),
+        _ => Ok(Vec::new()),
+    }
+}
+
+static MTLLIB_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^\s*mtllib\s+(.+?)\s*$").unwrap());
+
+/// Texture paths exactly as a mesh file stores them: FBX / glTF / GLB directly, OBJ through its `mtllib` files.
+pub(crate) fn mesh_texture_paths(path: &Path) -> Result<Vec<String>, String> {
+    let err = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
+    match ext_lower(path).as_str() {
+        "fbx" => referenced_paths(path).map_err(|e| err(&e)),
+        "gltf" => {
+            let text = fs::read_to_string(path).map_err(|e| err(&e))?;
+            serde_json::from_str(&text).map(|j| gltf_json_paths(&j)).map_err(|e| err(&e))
+        }
+        "glb" => fs::read(path).map(|b| glb_json(&b).map(|j| gltf_json_paths(&j)).unwrap_or_default()).map_err(|e| err(&e)),
+        "obj" => {
+            let text = String::from_utf8_lossy(&fs::read(path).map_err(|e| err(&e))?).into_owned();
+            let dir = path.parent().unwrap_or(Path::new("."));
+            let mut out = Vec::new();
+            for c in MTLLIB_RE.captures_iter(&text) {
+                // A missing MTL just means no references. MTL paths are relative to the MTL, which sits next to the OBJ.
+                if let Ok(b) = fs::read(dir.join(c[1].trim())) {
+                    out.extend(mtl_paths(&String::from_utf8_lossy(&b)));
+                }
+            }
+            Ok(out)
+        }
         _ => Ok(Vec::new()),
     }
 }

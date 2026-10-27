@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### V2 pipeline features
+- **Asset Matcher** (Ctrl+8): for an artist delivery folder (local or a Google Drive path), every
+  mesh and material slot is matched to a texture set with a 0-100 score and the reasons. Texture
+  paths stored in FBX / OBJ-MTL / glTF count first (a path that resolves to the file is exact; a
+  file name found in several folders is narrowed down by the folder names in the stored path),
+  then material names, mesh names and folder proximity. Close calls are marked Review instead of
+  guessed; picks can be changed per slot and saved as `asset_manifest.json` (paths relative to the
+  delivery, with `auto` / `manual` / `open` decisions). Unused texture sets, textures without a
+  map suffix and references to files that are not in the folder are listed. `MeshStats` now also
+  carries the material names.
 - **Texture sets** (Pipeline Tools): textures are grouped into material sets by their map suffix
   (`_BaseColor`, `_N`, `_Roughness`, `_Gloss`, `_ORM`, …), with the maps each set lacks; tick the
   ORM-ready sets and pack all of them at once (gloss maps are inverted into roughness).

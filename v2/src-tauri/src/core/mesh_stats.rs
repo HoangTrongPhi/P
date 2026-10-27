@@ -60,6 +60,8 @@ pub struct MeshStats {
     pub triangles: u64,
     pub polygons: u64,
     pub materials: usize,
+    /// Material (slot) names in file order, without duplicates.
+    pub material_names: Vec<String>,
     /// Most UV sets on any one mesh.
     pub uv_sets: usize,
     pub has_normals: bool,
@@ -81,6 +83,7 @@ impl MeshStats {
             triangles: 0,
             polygons: 0,
             materials: 0,
+            material_names: Vec::new(),
             uv_sets: 0,
             has_normals: false,
             bounds: None,
@@ -95,6 +98,13 @@ impl MeshStats {
         let mut s = MeshStats::new(path, &ext_lower(path));
         s.error = Some(err);
         s
+    }
+
+    fn add_material(&mut self, name: &str) {
+        let name = name.trim();
+        if !name.is_empty() && !self.material_names.iter().any(|n| n == name) {
+            self.material_names.push(name.to_string());
+        }
     }
 
     fn add_bounds(&mut self, b: &Bounds) {
@@ -213,6 +223,9 @@ fn fbx_binary_stats(path: &Path, data: &[u8]) -> Result<MeshStats, String> {
     }
     let Some(objects) = doc.nodes.iter().find(|n| n.is("Objects")) else { return Ok(s) };
     s.materials = objects.children.iter().filter(|n| n.is("Material")).count();
+    for m in objects.children.iter().filter(|n| n.is("Material")) {
+        s.add_material(&prop_str(m, 1).unwrap_or_default());
+    }
     let mut all_normals = true;
     for geo in objects.children.iter().filter(|n| n.is("Geometry") && is_mesh_object(n)) {
         s.meshes += 1;
@@ -302,6 +315,9 @@ fn fbx_ascii_stats(path: &Path, text: &str) -> MeshStats {
             geo_normals = true;
         } else if t.starts_with("Material:") {
             s.materials += 1;
+            if let Some(name) = t.split('"').nth(1) {
+                s.add_material(name.strip_prefix("Material::").unwrap_or(name));
+            }
         } else if let Some(c) = P_RE.captures(t) {
             let v: f64 = c[2].parse().unwrap_or(0.0);
             match &c[1] {
@@ -351,7 +367,9 @@ fn obj_stats(path: &Path) -> Result<MeshStats, String> {
             }
             Some("o") | Some("g") => objects += 1,
             Some("usemtl") => {
-                materials.insert(it.collect::<Vec<_>>().join(" "));
+                let name = it.collect::<Vec<_>>().join(" ");
+                s.add_material(&name);
+                materials.insert(name);
             }
             _ => {}
         }
@@ -380,7 +398,11 @@ fn gltf_stats(path: &Path, json: &serde_json::Value, format: &str) -> MeshStats 
     };
     let meshes = json.get("meshes").and_then(|m| m.as_array()).cloned().unwrap_or_default();
     s.meshes = meshes.len();
-    s.materials = json.get("materials").and_then(|m| m.as_array()).map_or(0, Vec::len);
+    let materials = json.get("materials").and_then(|m| m.as_array()).cloned().unwrap_or_default();
+    s.materials = materials.len();
+    for (i, m) in materials.iter().enumerate() {
+        s.add_material(m.get("name").and_then(|n| n.as_str()).map_or(format!("material_{i}"), str::to_string).as_str());
+    }
     let mut all_normals = !meshes.is_empty();
     for mesh in &meshes {
         for prim in mesh.get("primitives").and_then(|p| p.as_array()).into_iter().flatten() {
