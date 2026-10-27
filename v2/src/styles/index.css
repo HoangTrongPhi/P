@@ -24,6 +24,10 @@
   --color-viz-scene: #199e70;
   --color-viz-source: #c98500;
 
+  /* About dialog: the blueprint look of the author's portfolio site. */
+  --color-blueprint: #5ec8ff;
+  --color-blueprint-deep: #07142a;
+
   --font-sans: "Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
 
@@ -79,4 +83,36 @@
   .icon-btn {
     @apply grid size-7 place-items-center rounded-md text-ink-muted transition-colors hover:bg-white/6 hover:text-ink;
   }
+}
+
+/* About dialog hero: a blueprint grid and a wireframe that draws itself in. */
+.blueprint-grid {
+  background-color: var(--color-blueprint-deep);
+  background-image:
+    radial-gradient(ellipse at 30% 40%, color-mix(in srgb, var(--color-blueprint) 22%, transparent), transparent 65%),
+    linear-gradient(color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px, 22px 22px;
+}
+.blueprint-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: blueprint-draw 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.blueprint-glow {
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color-blueprint) 55%, transparent);
+}
+@keyframes blueprint-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes blueprint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.blueprint-pulse {
+  animation: blueprint-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-draw { animation: none; stroke-dashoffset: 0; }
+  .blueprint-pulse { animation: none; }
 }

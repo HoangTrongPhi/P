@@ -504,6 +504,14 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           }
           return { name: a.recipe.name, folder: a.folder, dryRun: a.dryRun, ok: true, steps: out, elapsedMs: out.length * 350 };
         }
+        case "plugin:updater|check":
+          return { rid: 1, currentVersion: "2.0.0-mock", version: "2.1.0", date: "2026-11-01T00:00:00Z", body: "- Faster Asset Matcher on Google Drive\n- Kit Assembler: Unity HDRP mask maps", rawJson: {} };
+        case "plugin:updater|download_and_install":
+          await sleep(1500);
+          return null;
+        case "plugin:process|restart":
+          location.reload();
+          return null;
         default:
           if (cmd.startsWith("plugin:event|")) return 0;
           console.warn("mockBackend: unhandled", cmd, args);

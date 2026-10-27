@@ -1,6 +1,7 @@
-import { FolderOpen, Files, PackageCheck, PanelBottom, Trash2, UserRound, type LucideIcon } from "lucide-react";
+import { FolderOpen, Files, PackageCheck, PanelBottom, RefreshCw, Trash2, UserRound, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../stores/appStore";
 import { useKitStore } from "../stores/kitStore";
+import { useUpdateStore } from "../stores/updateStore";
 import { pickPaths } from "./dialogs";
 import { MODULES } from "./modules";
 
@@ -32,6 +33,7 @@ export function buildCommands(): PaletteCommand[] {
     { id: "view.toggleLog", title: "Toggle log drawer", group: "View", icon: PanelBottom, shortcut: "Ctrl+`", keywords: "console terminal output", run: () => s.toggleLogDrawer() },
     { id: "kit.fromManifest", title: "Assemble kit from manifest…", group: "Actions", icon: PackageCheck, keywords: "asset manifest collect copy project ue5 unity", run: () => void useKitStore.getState().openManifestFile() },
     { id: "view.about", title: "About & contact", group: "View", icon: UserRound, keywords: "author email contact info help version", run: () => s.setAboutOpen(true) },
+    { id: "app.checkUpdates", title: "Check for updates…", group: "Actions", icon: RefreshCw, keywords: "update upgrade new version release download install", run: () => void useUpdateStore.getState().checkForUpdates() },
     { id: "view.clearLog", title: "Clear log", group: "View", icon: Trash2, keywords: "console reset", run: () => s.clearLogs() },
   ];
 }

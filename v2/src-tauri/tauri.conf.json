@@ -37,14 +37,18 @@
       },
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
-    "category": "Graphics",
+    "targets": [
+      "nsis"
+    ],
+    "category": "GraphicsAndDesign",
     "shortDescription": "3D asset renamer, FBX path doctor and Blender packer",
     "icon": [
       "icons/32x32.png",
@@ -57,7 +61,35 @@
       "../dcc_scripts/": "dcc_scripts/"
     },
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "startMenuFolder": "Project P",
+        "languages": [
+          "English",
+          "Vietnamese"
+        ],
+        "displayLanguageSelector": true
+      }
+    },
+    "createUpdaterArtifacts": true,
+    "publisher": "Phineas",
+    "copyright": "© 2026 Hoàng Trọng Phi",
+    "homepage": "https://github.com/HoangTrongPhi/P",
+    "longDescription": "3D asset toolkit: renamer, FBX path doctor, Blender packer, previewer, asset matcher and kit assembler."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY3RjNBMEI3Nzg0MTVCQTAKUldTZ1cwRjR0NkR6WnhnelNTZXdYMkJma1M1dnJDZnVLK3V0YnBDRWRBSTRJZk1ZUTgydXU3N1QK",
+      "endpoints": [
+        "https://github.com/HoangTrongPhi/P/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

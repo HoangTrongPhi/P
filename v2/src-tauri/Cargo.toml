@@ -17,6 +17,9 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+# Check for updates: signed installers from GitHub Releases (see docs/RELEASING.md).
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 

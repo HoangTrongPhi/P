@@ -1,12 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: core IPC, native dialogs, read access to user-chosen asset paths and PNG writes (viewport capture).",
+  "description": "Main window: core IPC, native dialogs, read access to user-chosen asset paths, PNG writes (viewport capture), and check for updates / restart.",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "dialog:default",
     "fs:default",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "**" }]

@@ -10,7 +10,7 @@ It lives in `v2/` so the Python prototype in `../src/` stays runnable as the ref
 | 1 | Tauri scaffold, Studio Dark UI, navigation rail, header, `Ctrl+K` palette, log drawer, drag & drop | Done |
 | 2 | Rust scanner, renamer, FBX doctor, Blender runner + IPC commands, Renamer / FBX Doctor / Blender Packer tabs | Done |
 | 3 | Three.js viewport, texture inspector, ORM packer, duplicate finder, unused textures | Done (asset:// loading not yet confirmed in the desktop app) |
-| 4 | Tests and release build | Rust + IPC tests in place; release build not started |
+| 4 | Tests and release build | Rust + IPC tests; signed NSIS installer and Check for updates from GitHub Releases ([RELEASING.md](../docs/RELEASING.md)) |
 | 5 | Asset Matcher (mesh ↔ texture set with confidence, review, `asset_manifest.json`), Kit Assembler (manifest → clean UE5 / Unity layout, ORM packing, relinked meshes), Dashboard (assets by type and package), About & contact dialog (`src/lib/author.ts`), texture sets + batch ORM, texture converter, mesh inspector, `.blend`-aware unused textures, HTML / CSV reports, Recipes tab + CLI | Done |
 
 ## Prerequisites (Windows)
@@ -28,7 +28,7 @@ npm run tauri dev      # desktop app with hot reload
 npm run dev            # UI only in a browser (backend calls disabled)
                        # open http://localhost:1420/?mock for a fake backend with sample data
 npm run build          # typecheck and bundle the frontend
-npm run tauri build    # release installer (NSIS / MSI)
+npm run tauri build    # release installer (NSIS); signed releases: ./scripts/release.ps1, see docs/RELEASING.md
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
@@ -85,22 +85,31 @@ PP_FBX_FIXTURES=D:/Assets cargo test --manifest-path src-tauri/Cargo.toml extern
 
 Types for all of them are in `src/types/pipeline.ts`, wrappers in `src/lib/ipc.ts`.
 
+## Guides
+
+- [Collecting an artist delivery](../docs/ASSET_COLLECTION_GUIDE.md): Dashboard → Asset Matcher → Kit Assembler, Google Drive, manifest formats.
+- [Releasing and updates](../docs/RELEASING.md): signed installer, `latest.json`, GitHub Releases.
+- [Changelog](../docs/CHANGELOG.md)
+
 ## Layout
 
 ```
 v2/
 ├── src/                     React 19 + Tailwind v4 frontend
-│   ├── components/layout/   NavigationRail, HeaderDashboard, CommandPalette, LogDrawer
-│   ├── components/ui/       PillBadge, GlassCard, DropZone
-│   ├── components/tabs/     one component per module
+│   ├── components/layout/   NavigationRail, HeaderDashboard, CommandPalette, LogDrawer, AboutDialog
+│   ├── components/ui/       PillBadge, GlassCard, DropZone, Controls, LocationPicker (Drive menu)
+│   ├── components/tabs/     one component per module (… DashboardTab, MatcherTab)
+│   ├── components/tools/    KitAssemblerDialog
 │   ├── hooks/               backend log bridge, global hotkeys, window drag & drop
-│   ├── lib/                 IPC wrappers, palette commands, module registry
-│   ├── stores/              zustand app store
+│   ├── lib/                 IPC wrappers, palette commands, module registry, reports, author, driveLink
+│   ├── stores/              zustand stores (app, per tab, kit)
+│   ├── dev/mockBackend.ts   fake backend for `?mock` in a plain browser
 │   └── types/pipeline.ts    IPC contracts shared with Rust
 ├── src-tauri/               Rust backend
 │   ├── src/commands/        thin #[tauri::command] handlers
 │   ├── src/core/            scanner, renamer, fbx/ (reader, writer, node, doctor), blender_runner,
-│   │                        texture_sets, texture_convert, mesh_stats, recipe
+│   │                        texture_sets, texture_convert, mesh_stats, recipe, usage, duplicate_finder,
+│   │                        asset_matcher, kit_assembler, mesh_cache, drive
 │   ├── src/cli.rs           headless `--recipe` runner
 │   └── src/utils/           logbus (UI log stream), history (undo file), paths
 └── dcc_scripts/blender/     headless_pack.py, bundled as a resource

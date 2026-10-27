@@ -66,7 +66,13 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
 }
 
 pub fn run() {
-    configure(Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_fs::init()))
-        .run(tauri::generate_context!())
-        .expect("error while running Project P");
+    configure(
+        Builder::default()
+            .plugin(tauri_plugin_dialog::init())
+            .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_process::init()),
+    )
+    .run(tauri::generate_context!())
+    .expect("error while running Project P");
 }

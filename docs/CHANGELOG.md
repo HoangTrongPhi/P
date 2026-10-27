@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### V2 pipeline features
+- **Installer and Check for updates**: `npm run tauri build` now produces a per-user NSIS setup
+  (no admin prompt, English / Vietnamese, Start menu and desktop shortcuts) signed for the updater.
+  Release builds look for a newer GitHub release a few seconds after start; the version pill in
+  the header, About & contact and `Ctrl+K` → "Check for updates…" check on demand. An update shows
+  its version and notes, downloads with progress, is verified against the signing key and restarts
+  the app. `scripts/release.ps1` bumps the version, builds and writes `latest.json`; see
+  [RELEASING.md](RELEASING.md). MSI was dropped (WiX rejects pre-release versions).
+- **About & contact** (navigation rail, or "About & contact" in `Ctrl+K`): a dialog in the style
+  of the author's portfolio (blueprint grid, a wireframe room that draws itself in, honours
+  reduced motion) with name, role, location and availability, a "Visit portfolio" button for
+  https://huang-fei-room-porfolio.vercel.app/, LinkedIn, ArtStation, GitHub, YouTube, Facebook,
+  the PDF portfolio, selected work and skills. Details live in `src/lib/author.ts`; links open
+  in the default browser through the `open_url` command (https / mailto only).
+- **Dashboard** (`Ctrl+7`): what a delivery contains, from names and sizes only (nothing is
+  downloaded from a streamed Google Drive): totals, files and size by asset type with a
+  per-format breakdown, and stacked bars by package (1-3 folder levels; top 20, the rest folded
+  into "Other"). Files / size metric, hover tooltips, a table view, click a package to open it,
+  HTML / CSV export. Colours are validated for colour-blind separation and contrast on the dark
+  theme.
+- **Docs**: [ASSET_COLLECTION_GUIDE.md](ASSET_COLLECTION_GUIDE.md) walks through Dashboard →
+  Asset Matcher → Kit Assembler, Google Drive tips and the manifest formats.
 - **Google Drive deliveries**: Asset Matcher and Dashboard get a Drive menu next to "Choose…" that
   lists the Google Drive for desktop drives with My Drive and every shared drive, plus a field
   for a pasted folder path (Explorer's quoted "Copy as path" works) or a Drive link (explained:

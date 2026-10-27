@@ -1,6 +1,7 @@
 import { Boxes, FileWarning, Search } from "lucide-react";
 import { moduleById } from "../../lib/modules";
 import { useAppStore } from "../../stores/appStore";
+import { useUpdateStore } from "../../stores/updateStore";
 import { PillBadge } from "../ui/PillBadge";
 
 function Stat({ icon: Icon, label, value, tone }: { icon: typeof Boxes; label: string; value: number; tone: "neutral" | "rose" }) {
@@ -19,6 +20,8 @@ export function HeaderDashboard() {
   const brokenPathCount = useAppStore((s) => s.brokenPathCount);
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
   const appInfo = useAppStore((s) => s.appInfo);
+  const update = useUpdateStore((s) => s.available);
+  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const mod = moduleById(activeTab);
 
   return (
@@ -42,9 +45,11 @@ export function HeaderDashboard() {
       <div className="flex shrink-0 items-center gap-2">
         <Stat icon={Boxes} label="Assets" value={assetCount} tone="neutral" />
         <Stat icon={FileWarning} label="Broken paths" value={brokenPathCount} tone="rose" />
-        <PillBadge tone={appInfo ? "emerald" : "amber"} className="ml-1">
-          {appInfo ? `v${appInfo.version}` : "browser preview"}
-        </PillBadge>
+        <button type="button" className="ml-1" title={update ? `v${update.version} is available` : "Check for updates"} onClick={() => void checkForUpdates()}>
+          <PillBadge tone={update ? "accent" : appInfo ? "emerald" : "amber"}>
+            {update ? `Update v${update.version}` : appInfo ? `v${appInfo.version}` : "browser preview"}
+          </PillBadge>
+        </button>
       </div>
     </header>
   );
