@@ -42,11 +42,12 @@ scripts/release.ps1                       Releases → v1.0.1 (latest, not pre-r
    ```
 
    This sets the version in `package.json`, `Cargo.toml` and `tauri.conf.json`, builds the signed
-   NSIS installer and writes `release/1.0.1/` with the installer, its `.sig` and `latest.json`.
+   NSIS installer and writes `release/1.0.1/` with the installer, its `.sig`, `latest.json` and
+   `SHA256SUMS.txt` (the Abyss launcher checks downloads against it; see Abyss `docs/RELEASE_STANDARD.md`).
    If PowerShell refuses to run scripts, allow local scripts once for your user:
    `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 3. Commit and push the version bump, then publish:
-   - **By hand**: <https://github.com/HoangTrongPhi/P/releases/new> → tag `v1.0.1` → attach the three
+   - **By hand**: <https://github.com/HoangTrongPhi/P/releases/new> → tag `v1.0.1` → attach the four
      files → leave *Set as a pre-release* unticked → *Publish release*.
    - **With GitHub CLI** (`winget install GitHub.cli`, then `gh auth login`): add `-Publish` to the command above.
 4. Check: open an older installed copy → header pill turns into "Update v1.0.1".

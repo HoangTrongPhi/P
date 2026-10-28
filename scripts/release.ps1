@@ -7,7 +7,8 @@
   ./scripts/release.ps1 -Version 1.0.1 -Notes "Faster matcher"
   ./scripts/release.ps1 -Version 1.0.1 -Publish   # also create the GitHub release (needs gh)
 
-  Output goes to release/<version>/: Poseidon_<version>_x64-setup.exe, its .sig and latest.json.
+  Output goes to release/<version>/: Poseidon_<version>_x64-setup.exe, its .sig, latest.json and
+  SHA256SUMS.txt (checked by the Abyss launcher).
   See docs/RELEASING.md.
 #>
 param(
@@ -84,13 +85,19 @@ $manifest = [ordered]@{
 }
 Set-FileText (Join-Path $outDir "latest.json") ($manifest | ConvertTo-Json -Depth 5)
 
+# Abyss release standard: SHA-256 of every asset, in sha256sum format ("<hex>  <name>").
+$sums = Get-ChildItem $outDir -File | Where-Object Name -ne "SHA256SUMS.txt" | Sort-Object Name | ForEach-Object {
+    "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+}
+Set-FileText (Join-Path $outDir "SHA256SUMS.txt") (($sums -join "`n") + "`n")
+
 Write-Host ""
 Write-Host "Release files in $outDir" -ForegroundColor Green
 Get-ChildItem $outDir | ForEach-Object { Write-Host "  $($_.Name)  ($([math]::Round($_.Length / 1MB, 1)) MB)" }
 
 # ---------------------------------------------------------------- publish
 if ($Publish) {
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "gh (GitHub CLI) is not installed; upload the three files by hand (docs/RELEASING.md)" }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "gh (GitHub CLI) is not installed; upload the four files by hand (docs/RELEASING.md)" }
     $files = Get-ChildItem $outDir | ForEach-Object { $_.FullName }
     $notesArg = if ($Notes) { $Notes } else { "Poseidon v$Version" }
     gh release create "v$Version" @files --repo $Repo --title "Poseidon v$Version" --notes $notesArg --latest
@@ -98,5 +105,5 @@ if ($Publish) {
     Write-Host "Published https://github.com/$Repo/releases/tag/v$Version" -ForegroundColor Green
 } else {
     Write-Host ""
-    Write-Host "Next: create release v$Version on https://github.com/$Repo/releases/new and attach all three files (not marked pre-release)."
+    Write-Host "Next: create release v$Version on https://github.com/$Repo/releases/new and attach all four files (not marked pre-release)."
 }
