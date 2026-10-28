@@ -1,5 +1,6 @@
 import { ArrowUpLeft, Box, ChartBar, Download, FileImage, FolderOpen, HardDrive, Image, Layers, Loader2, Package, RefreshCw } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn";
 import { dirname, humanSize, joinPath } from "../../lib/pathUtil";
 import { exportReport, type ReportDoc } from "../../lib/reports";
@@ -26,23 +27,44 @@ const pct = (part: number, whole: number) => (whole > 0 ? `${((part / whole) * 1
 // ---------------------------------------------------------------- tooltip
 
 interface Tip {
-  x: number;
-  y: number;
   title: string;
   lines: [string, string][];
   color?: string;
 }
 
+/**
+ * Cursor-following tooltip. Portaled to <body> because GlassCard's backdrop-blur makes
+ * it the containing block for `position: fixed`; mouse moves only touch the DOM node so
+ * the card does not re-render on every pixel.
+ */
 function useTooltip() {
   const [tip, setTip] = useState<Tip | null>(null);
-  const bind = (content: Omit<Tip, "x" | "y">) => ({
-    onMouseMove: (e: React.MouseEvent) => setTip({ ...content, x: e.clientX, y: e.clientY }),
+  const ref = useRef<HTMLDivElement>(null);
+  const pos = useRef({ x: 0, y: 0 });
+  const place = () => {
+    const el = ref.current;
+    if (!el) return;
+    const { x, y } = pos.current;
+    const left = Math.max(4, Math.min(x + 14, window.innerWidth - el.offsetWidth - 8));
+    const top = y + 14 + el.offsetHeight > window.innerHeight - 8 ? Math.max(4, y - el.offsetHeight - 10) : y + 14;
+    el.style.transform = `translate(${left}px, ${top}px)`;
+  };
+  useLayoutEffect(place, [tip]);
+  const bind = (content: Tip) => ({
+    onMouseEnter: (e: React.MouseEvent) => {
+      pos.current = { x: e.clientX, y: e.clientY };
+      setTip(content);
+    },
+    onMouseMove: (e: React.MouseEvent) => {
+      pos.current = { x: e.clientX, y: e.clientY };
+      place();
+    },
     onMouseLeave: () => setTip(null),
   });
-  const node = tip && (
+  const node = tip && createPortal(
     <div
-      className="pointer-events-none fixed z-50 min-w-40 rounded-lg border border-edge-strong bg-panel-raised px-2.5 py-2 text-[12px] shadow-xl"
-      style={{ left: Math.min(tip.x + 14, window.innerWidth - 220), top: tip.y + 14 }}
+      ref={ref}
+      className="pointer-events-none fixed top-0 left-0 z-50 min-w-40 rounded-lg border border-edge-strong bg-panel-raised px-2.5 py-2 text-[12px] shadow-xl will-change-transform"
       role="tooltip"
     >
       <div className="mb-1 flex items-center gap-1.5 font-medium text-ink">
@@ -55,7 +77,8 @@ function useTooltip() {
           <span className="text-ink tabular-nums">{v}</span>
         </div>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
   return { bind, node };
 }

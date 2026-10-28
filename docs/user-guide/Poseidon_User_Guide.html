@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Poseidon — Hướng dẫn sử dụng</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root {
+    --ink: #1a1d24; --muted: #5b6372; --line: #dfe3ea; --blue: #2563eb; --blue-soft: #eef3fe;
+    --amber: #b45309; --amber-soft: #fff7e8; --green: #047857; --green-soft: #ecfaf3;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; margin: 0; background: #fff; }
+  h1, h2, h3 { line-height: 1.25; }
+  h2 { font-size: 17pt; margin: 0 0 4pt; color: var(--ink); }
+  h3 { font-size: 12pt; margin: 14pt 0 4pt; color: var(--blue); }
+  p { margin: 4pt 0 6pt; }
+  ul, ol { margin: 4pt 0 6pt; padding-left: 18pt; }
+  li { margin: 2pt 0; }
+  code, .k { font-family: "Cascadia Mono", Consolas, monospace; font-size: 9pt; background: #f2f4f7; border: 1px solid #e6e9ef; border-radius: 3px; padding: 0 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 8pt; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 4pt 6pt; border-bottom: 1px solid var(--line); }
+  th { background: #f5f7fa; font-weight: 600; }
+  .page { page-break-after: always; }
+  .section { page-break-before: always; }
+
+  /* Cover */
+  .cover { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; padding: 30mm 6mm 6mm; }
+  .cover .badge { display: inline-block; font-size: 9pt; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); border: 1px solid var(--blue); padding: 2pt 8pt; border-radius: 20pt; }
+  .cover h1 { font-size: 44pt; margin: 14pt 0 4pt; letter-spacing: -.01em; }
+  .cover .sub { font-size: 16pt; color: var(--muted); margin: 0; }
+  .cover .bar { height: 5px; width: 70mm; background: linear-gradient(90deg, #2563eb, #10b981); border-radius: 3px; margin: 18pt 0; }
+  .cover .meta { color: var(--muted); font-size: 10pt; }
+  .cover .meta b { color: var(--ink); }
+
+  /* TOC */
+  .toc ol { list-style: none; padding: 0; counter-reset: none; }
+  .toc li { display: flex; gap: 8pt; padding: 5pt 0; border-bottom: 1px dotted var(--line); }
+  .toc .n { width: 22pt; color: var(--blue); font-weight: 600; }
+  .toc .d { color: var(--muted); margin-left: auto; font-size: 9pt; text-align: right; }
+
+  .tabhead { display: flex; align-items: baseline; gap: 10pt; border-bottom: 2px solid var(--ink); padding-bottom: 4pt; margin-bottom: 8pt; }
+  .tabhead .num { font-size: 22pt; font-weight: 700; color: var(--blue); }
+  .tabhead .key { margin-left: auto; font-size: 9pt; color: var(--muted); }
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 8pt; }
+
+  .box { border-radius: 6px; padding: 7pt 10pt; margin: 8pt 0; page-break-inside: avoid; }
+  .use { background: var(--green-soft); border-left: 4px solid var(--green); }
+  .use b.t { color: var(--green); }
+  .note { background: var(--amber-soft); border-left: 4px solid var(--amber); }
+  .note b.t { color: var(--amber); }
+  .tip { background: var(--blue-soft); border-left: 4px solid var(--blue); }
+  .tip b.t { color: var(--blue); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; margin: 8pt 0; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 7pt 9pt; page-break-inside: avoid; }
+  .card b { display: block; margin-bottom: 2pt; }
+  .card span { color: var(--muted); font-size: 9.5pt; }
+  .flow { display: flex; align-items: center; gap: 6pt; flex-wrap: wrap; margin: 8pt 0; }
+  .flow .s { border: 1px solid var(--blue); color: var(--blue); border-radius: 4px; padding: 3pt 8pt; font-weight: 600; font-size: 9.5pt; }
+  .flow .a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ====================== COVER ====================== -->
+<div class="page cover">
+  <div>
+    <span class="badge">Tài liệu hướng dẫn sử dụng</span>
+    <h1>Poseidon</h1>
+    <p class="sub">3D Asset Toolkit &amp; Doctor</p>
+    <div class="bar"></div>
+    <p style="max-width:140mm">Bộ công cụ desktop giúp artist 3D, Technical Director và game developer
+      dọn dẹp, kiểm tra và đóng gói asset trước khi đưa vào Unreal Engine 5 hoặc Unity.</p>
+  </div>
+  <div class="meta">
+    <p><b>Phiên bản:</b> 1.0.0 &nbsp;·&nbsp; <b>Nền tảng:</b> Windows 10/11</p>
+    <p><b>Công nghệ:</b> Tauri 2 · Rust · React 19 · Three.js</p>
+    <p><b>Ngày phát hành tài liệu:</b> 28/10/2026</p>
+  </div>
+</div>
+
+<!-- ====================== TOC ====================== -->
+<div class="page toc">
+  <h2>Mục lục</h2>
+  <ol>
+    <li><span class="n">1</span>Giới thiệu tổng quan<span class="d">Poseidon là gì, giao diện, phím tắt</span></li>
+    <li><span class="n">2</span>Batch Renamer<span class="d">Đổi tên hàng loạt · Ctrl+1</span></li>
+    <li><span class="n">3</span>FBX Doctor<span class="d">Sửa đường dẫn texture trong FBX · Ctrl+2</span></li>
+    <li><span class="n">4</span>Blender Packer<span class="d">Gom texture file .blend · Ctrl+3</span></li>
+    <li><span class="n">5</span>Asset Previewer<span class="d">Xem 3D &amp; texture · Ctrl+4</span></li>
+    <li><span class="n">6</span>Pipeline Tools<span class="d">ORM, convert, mesh, duplicate · Ctrl+5</span></li>
+    <li><span class="n">7</span>Recipes<span class="d">Chuỗi thao tác lặp lại · Ctrl+6</span></li>
+    <li><span class="n">8</span>Dashboard<span class="d">Thống kê asset · Ctrl+7</span></li>
+    <li><span class="n">9</span>Asset Matcher &amp; Kit Assembler<span class="d">Ghép mesh ↔ texture · Ctrl+8</span></li>
+    <li><span class="n">10</span>Tóm tắt ứng dụng các tính năng<span class="d">Bảng tra cứu nhanh</span></li>
+  </ol>
+
+  <h3 style="margin-top:22pt">Phím tắt</h3>
+  <table>
+    <tr><th style="width:32%">Phím</th><th>Tác dụng</th></tr>
+    <tr><td><span class="k">Ctrl+K</span> / <span class="k">Ctrl+P</span></td><td>Mở Command Palette</td></tr>
+    <tr><td><span class="k">Ctrl+1</span> … <span class="k">Ctrl+8</span></td><td>Chuyển tab theo thứ tự trên Navigation Rail</td></tr>
+    <tr><td><span class="k">Ctrl+`</span></td><td>Mở / đóng Log Drawer</td></tr>
+    <tr><td><span class="k">Ctrl+,</span></td><td>Giao diện: theme Sáng / Tối / Hệ thống, font, cỡ chữ 90–125 %</td></tr>
+  </table>
+</div>
+
+<!-- ====================== 1. OVERVIEW ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">1</span><h2>Giới thiệu tổng quan</h2></div>
+  <p class="lead">Poseidon gom các thao tác “dọn dẹp asset” thường phải làm tay hoặc bằng script rời rạc vào một ứng dụng duy nhất, chạy nhanh và an toàn.</p>
+
+  <h3>Poseidon giải quyết vấn đề gì?</h3>
+  <ul>
+    <li>Tên file không theo chuẩn (<code>wood_planks_basecolor.png</code> thay vì <code>T_WoodPlanks_D.png</code>).</li>
+    <li>File FBX lưu đường dẫn tuyệt đối từ máy artist (<code>D:\artist\…</code>) nên mất texture khi import.</li>
+    <li>File .blend tham chiếu texture nằm rải rác, không mang đi được.</li>
+    <li>Bộ asset bàn giao từ artist (thường trên Google Drive) không rõ mesh nào dùng texture nào.</li>
+    <li>Cần pack ORM, đổi định dạng / kích thước texture, tìm file trùng hoặc texture không dùng.</li>
+  </ul>
+
+  <h3>Điểm mạnh</h3>
+  <div class="grid">
+    <div class="card"><b>Nhanh &amp; nhẹ</b><span>Lõi Rust xử lý song song, khởi động dưới 1 giây, bộ cài ~20 MB.</span></div>
+    <div class="card"><b>An toàn</b><span>Mọi thao tác ghi đều có xem trước (dry run), backup <code>.fbx.bak</code> hoặc Undo.</span></div>
+    <div class="card"><b>Hỗ trợ Google Drive</b><span>Đọc thư mục Drive for desktop, ước tính dung lượng trước khi tải.</span></div>
+    <div class="card"><b>Tự động hoá</b><span>Lưu chuỗi thao tác thành Recipe, chạy được từ dòng lệnh.</span></div>
+  </div>
+
+  <h3>Bố cục giao diện</h3>
+  <table>
+    <tr><th style="width:32%">Thành phần</th><th>Chức năng</th></tr>
+    <tr><td>Navigation Rail (cột trái)</td><td>Chuyển giữa 8 tab; nút About &amp; contact và Appearance (bánh răng).</td></tr>
+    <tr><td>Header</td><td>Số asset, cảnh báo, phiên bản (bấm để kiểm tra bản cập nhật).</td></tr>
+    <tr><td>Command Palette</td><td>Tìm và chạy nhanh mọi lệnh bằng <span class="k">Ctrl+K</span>.</td></tr>
+    <tr><td>Log Drawer (dưới đáy)</td><td>Nhật ký hoạt động chi tiết, bật / tắt bằng <span class="k">Ctrl+`</span>.</td></tr>
+    <tr><td>Kéo &amp; thả</td><td>Thả file / thư mục vào cửa sổ, Poseidon tự đưa tới tab phù hợp.</td></tr>
+    <tr><td>Mở thư mục</td><td>Kéo thả, nút <b>Choose…</b>, hoặc menu <b>☁</b> (My Drive / Shared drive của Google Drive for desktop, hoặc dán đường dẫn).</td></tr>
+  </table>
+
+</div>
+
+<!-- ====================== 2. RENAMER ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">2</span><h2>Batch Renamer</h2><span class="key">Ctrl+1</span></div>
+  <p class="lead">Đổi tên hàng loạt asset theo chuẩn Unreal Engine 5, Unity, hoặc theo quy tắc tuỳ chỉnh — có xem trước và Undo.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Kéo thả thư mục (hoặc file) vào tab, hoặc bấm mở thư mục. Bật <b>Subfolders</b> để quét cả thư mục con.</li>
+    <li>Lọc loại file: <b>All</b>, <b>Meshes</b>, <b>Textures</b>, <b>PSD</b>.</li>
+    <li>Thêm quy tắc (Rules). Các quy tắc chạy lần lượt từ trên xuống, có thể bật / tắt, đổi thứ tự, xoá:
+      <ul>
+        <li><b>Preset: Unreal Engine 5</b> — <code>SM_</code>, <code>SK_</code>, <code>T_*_D / _N / _R / _M / _ORM</code>.</li>
+        <li><b>Preset: Unity</b> — PascalCase, <code>_Albedo / _Normal / _MaskMap</code>.</li>
+        <li><b>Search &amp; replace</b> — tìm / thay thế, hỗ trợ <b>Regex</b> (<code>$1</code>, <code>$2</code>) và <b>Match case</b>.</li>
+        <li><b>Prefix / Suffix</b> — thêm tiền tố / hậu tố, có tuỳ chọn bỏ qua tên đã có sẵn.</li>
+        <li><b>Change case</b> — snake_case, camelCase, PascalCase, UPPER_CASE, lowercase, kebab-case.</li>
+      </ul>
+    </li>
+    <li>Bảng xem trước cập nhật ngay: <b>Current name → New name</b> kèm trạng thái
+      <b>OK</b>, <b>Skipped</b>, <b>Collision</b> (trùng tên), <b>Invalid</b>. Bật <b>Hide unchanged</b> để chỉ xem dòng thay đổi.</li>
+    <li>Bấm <b>Apply</b> để đổi tên. Nếu cần quay lại, bấm <b>Undo</b>.</li>
+  </ol>
+
+  <div class="box note"><b class="t">An toàn:</b> Poseidon kiểm tra trùng tên trước khi ghi, đổi tên hai pha khi có hoán đổi (a → b, b → a) và lưu lịch sử vào <code>.rename_history.json</code> trong thư mục để Undo.</div>
+  <div class="box use"><b class="t">Ứng dụng:</b> chuẩn hoá tên cả thư viện asset theo naming convention của studio / engine chỉ trong vài giây, tránh lỗi gõ tay và dễ dàng hoàn tác.</div>
+</div>
+
+<!-- ====================== 3. FBX DOCTOR ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">3</span><h2>FBX Doctor</h2><span class="key">Ctrl+2</span></div>
+  <p class="lead">Tìm và sửa đường dẫn texture tuyệt đối / hỏng bên trong file FBX (Binary 7.x và ASCII) mà không cần mở phần mềm 3D.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Kéo thả file FBX hoặc thư mục chứa FBX vào tab.</li>
+    <li>Chọn một file để xem bảng <b>Texture paths</b>: Object / field, <b>Path in file</b>, loại đường dẫn (Kind) và trạng thái <b>On disk</b> (found / missing).</li>
+    <li>Chọn chế độ sửa (<b>Mode</b>):
+      <table>
+        <tr><th style="width:22%">Mode</th><th>Kết quả</th></tr>
+        <tr><td><b>Relative</b></td><td>Đường dẫn tương đối từ FBX tới vị trí thật của texture.</td></tr>
+        <tr><td><b>Strip</b></td><td>Chỉ giữ tên file (<code>wood.png</code>).</td></tr>
+        <tr><td><b>Collect</b></td><td>Copy texture vào thư mục con cạnh FBX (mặc định <code>textures/</code>) và trỏ tới đó.</td></tr>
+      </table>
+    </li>
+    <li>Tuỳ chọn thêm:
+      <ul>
+        <li><b>Extra texture folders</b> / <b>Also search the parent folder</b> — nơi tìm texture theo tên file (vd. thư mục <code>../Textures</code>).</li>
+        <li><b>Rewrite every path</b> — sửa cả đường dẫn đã hợp lệ, không chỉ đường dẫn tuyệt đối / hỏng.</li>
+        <li><b>Guess paths for missing textures</b> — texture không tìm thấy được gán <code>&lt;subfolder&gt;/&lt;name&gt;</code>.</li>
+        <li><b>Keep .fbx.bak backup</b> — giữ bản sao lưu (khuyến nghị bật).</li>
+      </ul>
+    </li>
+    <li>Áp dụng cho <b>Selected file</b> hoặc <b>All files</b>, kiểm tra preview rồi bấm <b>Fix</b>. Có thể khôi phục từng file từ <code>.fbx.bak</code>.</li>
+  </ol>
+  <div class="box tip"><b class="t">Mẹo:</b> xuất báo cáo HTML / CSV để gửi lại cho artist danh sách texture bị thiếu.</div>
+  <div class="box use"><b class="t">Ứng dụng:</b> khắc phục lỗi “mất texture” kinh điển khi import FBX từ máy khác vào UE5 / Unity / Blender; giữ nguyên byte các phần không chỉnh sửa nên file vẫn an toàn.</div>
+</div>
+
+<!-- ====================== 4. BLENDER PACKER ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">4</span><h2>Blender Packer</h2><span class="key">Ctrl+3</span></div>
+  <p class="lead">Điều khiển Blender 5.0+ chạy ngầm (headless) để phân tích và gom toàn bộ file phụ thuộc của một scene .blend.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Poseidon tự tìm Blender (biến môi trường <code>BLENDER_PATH</code>, Registry, thư mục cài đặt mặc định). Nếu không thấy, bấm <b>Browse</b> để chỉ định <code>blender.exe</code>.</li>
+    <li>Kéo thả file <b>.blend</b> hoặc mở bằng nút chọn file.</li>
+    <li>Chọn <b>Operations</b>:
+      <table>
+        <tr><th style="width:34%">Thao tác</th><th>Tác dụng</th></tr>
+        <tr><td><b>Analyse only</b></td><td>Chỉ báo cáo các file phụ thuộc, không thay đổi gì.</td></tr>
+        <tr><td><b>Consolidate</b></td><td>Copy file ngoài vào <code>//textures</code> và remap đường dẫn.</td></tr>
+        <tr><td><b>Make paths relative</b></td><td>Chuyển đường dẫn tuyệt đối sang tương đối.</td></tr>
+        <tr><td><b>Unpack embedded files</b></td><td>Xuất ảnh đã pack ra <code>//textures</code>.</td></tr>
+        <tr><td><b>Pack everything into the .blend</b></td><td>Nhúng toàn bộ vào một file .blend duy nhất.</td></tr>
+        <tr><td><b>Bundle a zip</b></td><td>Đóng gói .blend kèm <code>textures/</code> và <code>assets/</code> thành file zip.</td></tr>
+      </table>
+    </li>
+    <li><b>Output</b>: ghi đè file gốc (Blender giữ bản <code>.blend1</code>) hoặc <b>Save as a new file</b>.</li>
+    <li>Bấm chạy, theo dõi thanh tiến trình. Khi xong, mục <b>Report</b> liệt kê từng data-block, đường dẫn và trạng thái (found / missing / packed).</li>
+  </ol>
+  <div class="box use"><b class="t">Ứng dụng:</b> chuẩn bị file .blend để bàn giao, lưu trữ hoặc gửi render farm — đảm bảo người nhận mở ra không bị thiếu texture (ảnh hồng).</div>
+</div>
+
+<!-- ====================== 5. PREVIEWER ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">5</span><h2>Asset Previewer</h2><span class="key">Ctrl+4</span></div>
+  <p class="lead">Xem nhanh mesh 3D và texture (kể cả HDR / EXR / PSD / TIFF) ngay trong ứng dụng, không cần mở DCC.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Kéo thả mesh, texture hoặc cả thư mục. Danh sách asset hiện bên trái, chuyển giữa dạng <b>list</b> và <b>thumbnails</b>, gõ <b>Filter</b> để lọc.</li>
+    <li>Chọn một asset để xem:</li>
+  </ol>
+  <div class="grid">
+    <div class="card"><b>Viewport 3D (FBX, OBJ, glTF, GLB)</b>
+      <span>Xoay / zoom / pan bằng chuột · lưới nền, trục pivot · <b>Reset camera</b> · thông số Triangles, Vertices, UV sets, Materials, Bones, kích thước và đơn vị file · danh sách vật liệu &amp; texture · phát animation (chọn clip, tốc độ) · ánh sáng: Studio, HDR/EXR tuỳ chọn, Exposure, Key light · <b>Save view as PNG</b> nền trong suốt.</span></div>
+    <div class="card"><b>Texture viewer</b>
+      <span>Fit to view / Actual size (100%) · zoom, pan · điều chỉnh <b>Exposure</b> và <b>Gamma</b> cho ảnh HDR · thông tin kích thước, định dạng, kiểu dữ liệu.</span></div>
+  </div>
+  <ol start="3">
+    <li>Bật <b>Reload when it changes on disk</b> để tự tải lại khi file (và texture của model) thay đổi — tiện khi vừa export từ DCC vừa xem.</li>
+  </ol>
+  <div class="box use"><b class="t">Ứng dụng:</b> kiểm tra nhanh asset nhận được (đúng scale, đúng trục, đủ texture, đếm poly) trước khi import vào engine; chụp ảnh preview cho tài liệu hoặc thư viện asset.</div>
+</div>
+
+<!-- ====================== 6. PIPELINE TOOLS ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">6</span><h2>Pipeline Tools</h2><span class="key">Ctrl+5</span></div>
+  <p class="lead">Bộ 6 tiện ích xử lý texture và mesh, chọn bằng thanh tab nhỏ phía trên.</p>
+
+  <table>
+    <tr><th style="width:20%">Công cụ</th><th style="width:48%">Cách dùng</th><th>Ứng dụng</th></tr>
+    <tr><td><b>ORM packer</b></td>
+      <td>Thả các map <code>…_ao</code>, <code>…_roughness</code>, <code>…_metallic</code> (hoặc chọn từng file), đặt tên output (vd. <code>T_Asset_ORM.png</code>), chọn PNG / TGA. Tick nếu input là gloss / smoothness (sẽ được đảo ngược). Map thiếu dùng giá trị mặc định (AO 1.0, Roughness 0.5, Metallic 0).</td>
+      <td>Gộp 3 map xám thành 1 texture R=AO, G=Roughness, B=Metallic — giảm số texture sample, chuẩn của UE5.</td></tr>
+    <tr><td><b>Texture sets</b></td>
+      <td>Chọn thư mục → texture được nhóm theo material dựa vào hậu tố (<code>_BaseColor</code>, <code>_N</code>, <code>_Roughness</code>…). Xem mỗi set thiếu map nào, pack ORM hàng loạt cho các set đủ điều kiện.</td>
+      <td>Kiểm tra độ đầy đủ của bộ texture PBR và pack ORM cho cả thư viện một lần.</td></tr>
+    <tr><td><b>Converter</b></td>
+      <td>Thêm texture / thư mục. Chọn định dạng (Same as source, PNG, TGA, JPG, DDS uncompressed + mips), <b>Max size</b>, <b>Snap to power of two</b>, <b>Flip green channel</b>, hậu tố và thư mục output. Có Preview trước khi ghi.</td>
+      <td>Resize texture cho mobile / LOD, ép kích thước lũy thừa 2, chuyển normal map DirectX (UE) ↔ OpenGL (Unity, Blender).</td></tr>
+    <tr><td><b>Meshes</b></td>
+      <td>Thả file mesh hoặc chọn thư mục → bảng Triangles, Vertices, UV sets, Materials, Normals, kích thước, đơn vị, trục Up; có thể đặt ngân sách tam giác.</td>
+      <td>Audit poly budget và lỗi kỹ thuật (thiếu UV, sai đơn vị / trục) cho cả loạt mesh mà không cần viewport.</td></tr>
+    <tr><td><b>Duplicates</b></td>
+      <td>Chọn thư mục → file được nhóm theo kích thước rồi băm XXH3-128 song song. Kết quả là các nhóm file giống hệt từng byte; <b>Show in Explorer</b> để xử lý.</td>
+      <td>Tìm file trùng lặp để dọn dung lượng project / repo.</td></tr>
+    <tr><td><b>Unused textures</b></td>
+      <td>Chọn thư mục → đọc mọi FBX, OBJ/MTL, glTF, GLB và so với texture trên đĩa. Tick <b>Read .blend files</b> để tính cả scene Blender (cần Blender 5.0+).</td>
+      <td>Phát hiện texture “mồ côi” không mesh nào dùng, để xoá bớt trước khi bàn giao.</td></tr>
+  </table>
+  <div class="box tip"><b class="t">Báo cáo:</b> hầu hết công cụ có nút xuất <b>HTML / CSV</b> để chia sẻ kết quả.</div>
+</div>
+
+<!-- ====================== 7. RECIPES ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">7</span><h2>Recipes</h2><span class="key">Ctrl+6</span></div>
+  <p class="lead">Ghép nhiều công cụ thành một quy trình (recipe) chạy lặp lại được — trong ứng dụng hoặc từ dòng lệnh.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Đặt tên recipe (vd. <i>My import recipe</i>), hoặc chọn <b>Templates…</b> để bắt đầu từ mẫu có sẵn.</li>
+    <li><b>Add step…</b> để thêm bước. Các loại bước:
+      <table>
+        <tr><th style="width:30%">Bước</th><th>Mô tả</th></tr>
+        <tr><td>Rename</td><td>Preset UE5 / Unity / Custom (có thể copy rule đang bật từ tab Renamer).</td></tr>
+        <tr><td>Fix FBX</td><td>Relative / Strip / Collect, tuỳ chọn ghi lại texture không tìm thấy.</td></tr>
+        <tr><td>Pack ORM</td><td>PNG / TGA, tuỳ chọn ghi đè file ORM có sẵn.</td></tr>
+        <tr><td>Convert textures</td><td>Định dạng, Max size, Power of two, Flip green.</td></tr>
+        <tr><td>Inspect meshes</td><td>Thống kê mesh, ngân sách tam giác.</td></tr>
+        <tr><td>Find unused / duplicates</td><td>Tìm texture không dùng (tuỳ chọn đọc .blend) / file trùng.</td></tr>
+      </table>
+    </li>
+    <li>Sắp xếp bước bằng Move up / down, lưu recipe thành file <code>.json</code>.</li>
+    <li>Kéo thả thư mục cần xử lý, bật <b>Dry run</b> để <b>Preview run</b> (không ghi gì), rồi <b>Run for real</b>. Recipe dừng lại nếu một bước lỗi.</li>
+    <li>Bấm <b>Copy command line</b> để lấy lệnh chạy không cần giao diện:</li>
+  </ol>
+  <p><code>poseidon.exe --recipe ue5-prep.json D:/Assets/Props --dry-run --report report.json</code></p>
+  <p style="font-size:9.5pt;color:var(--muted)">Mã thoát: 0 = mọi bước thành công, 1 = có bước lỗi, 2 = sai tham số / recipe không hợp lệ. Trong <code>cmd</code> dùng <code>start /wait poseidon.exe …</code> để chờ kết quả.</p>
+  <div class="box use"><b class="t">Ứng dụng:</b> chuẩn hoá quy trình nhập asset của cả team (“mọi asset mới phải đổi tên UE5 → sửa FBX → pack ORM”), tích hợp vào build script / CI.</div>
+</div>
+
+<!-- ====================== 8. DASHBOARD ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">8</span><h2>Dashboard</h2><span class="key">Ctrl+7</span></div>
+  <p class="lead">Trả lời câu hỏi “Bộ bàn giao này có gì?” — thống kê số lượng và dung lượng asset.</p>
+
+  <h3>Cách sử dụng</h3>
+  <ol>
+    <li>Kéo thả thư mục asset (ổ local hoặc đường dẫn Google Drive như <code>G:\Shared drives\…</code>).</li>
+    <li>Xem các chỉ số tổng: Assets, Meshes, Textures, Packages, Total size.</li>
+    <li><b>By asset type</b>: phân bổ theo Mesh / Texture / Scene / Source, kèm chi tiết theo định dạng.</li>
+    <li><b>By package</b>: biểu đồ cột chồng theo thư mục con. Chỉnh <b>Package level</b> (1–3 cấp thư mục), chuyển chỉ số <b>Files</b> / <b>Size</b>, chuyển <b>Chart</b> / <b>Table</b>.</li>
+    <li>Bấm vào một package để đi sâu vào trong, nút <b>↖ Up one folder</b> để quay ra. Xuất báo cáo HTML / CSV.</li>
+  </ol>
+  <div class="box note"><b class="t">Lưu ý:</b> Dashboard chỉ đọc tên và kích thước file, nên có thể xem cả một Shared drive mà không tải file nào về máy.</div>
+  <div class="box use"><b class="t">Ứng dụng:</b> đánh giá nhanh quy mô và cấu trúc bộ asset của artist / outsource trước khi xử lý, phát hiện package quá nặng, lên kế hoạch dung lượng.</div>
+</div>
+
+<!-- ====================== 9. MATCHER ====================== -->
+<div class="page">
+  <div class="tabhead"><span class="num">9</span><h2>Asset Matcher &amp; Kit Assembler</h2><span class="key">Ctrl+8</span></div>
+  <p class="lead">Tự động xác định texture set nào đi với mesh / material slot nào, sau đó đóng gói thành bộ kit sạch cho UE5 hoặc Unity.</p>
+  <div class="flow"><span class="s">Dashboard</span><span class="a">→</span><span class="s">Asset Matcher</span><span class="a">→</span><span class="s">Kit Assembler</span><span class="a">→</span><span class="s">Project UE5 / Unity</span></div>
+
+  <h3>Asset Matcher</h3>
+  <ol>
+    <li>Mở thư mục bàn giao (hoặc một package). Với Google Drive, Poseidon ước tính dung lượng mesh cần đọc và hỏi lại nếu vượt 64 MB.</li>
+    <li>Mỗi mesh (FBX, OBJ, glTF, GLB) và mỗi material slot nhận một texture set, <b>điểm tin cậy 0–100</b> và lý do:
+      <table>
+        <tr><th style="width:18%">Trạng thái</th><th>Ý nghĩa</th></tr>
+        <tr><td><b>Exact</b></td><td>File mesh lưu đường dẫn tới chính texture của set.</td></tr>
+        <tr><td><b>Likely</b></td><td>Thắng rõ ràng theo tên material / tên mesh.</td></tr>
+        <tr><td><b>Review</b></td><td>Nhiều set điểm gần bằng nhau hoặc bằng chứng yếu — bạn tự chọn.</td></tr>
+        <tr><td><b>No match</b></td><td>Không set nào đủ điểm.</td></tr>
+      </table>
+    </li>
+    <li>Lọc <b>To decide</b> để xem các slot cần xử lý; <b>Accept best for reviews</b> chọn ứng viên tốt nhất cho mọi slot Review. Mỗi slot có dropdown để đổi set thủ công (đánh dấu ✎).</li>
+    <li>Panel bên phải hiển thị ứng viên, map của set và đường dẫn texture trong mesh; khi không chọn slot, nó liệt kê <b>Unused texture sets</b> và <b>Textures without a map suffix</b>.</li>
+    <li><b>Refresh</b> để match lại mà vẫn giữ lựa chọn; <b>Save manifest</b> ghi <code>asset_manifest.json</code>; Export ra HTML / CSV.</li>
+  </ol>
+
+  <h3>Kit Assembler</h3>
+  <p>Bấm <b>Assemble kit…</b> (hoặc <i>Assemble kit from manifest…</i> trong <span class="k">Ctrl+K</span>):</p>
+  <ul>
+    <li><b>Destination</b>: thư mục project, vd. <code>&lt;UE project&gt;\Content\Environment</code>.</li>
+    <li><b>Naming</b>: Unreal (<code>SM_…</code>, <code>T_…_D/_N/_ORM</code>), Unity (<code>WallCorner_BaseColor.png</code>) hoặc giữ tên gốc.</li>
+    <li>Tuỳ chọn: <b>Pack ORM maps</b>, <b>Relink texture paths in meshes</b>, <b>Keep package folders</b>, <b>Include unconfirmed matches</b>, <b>Overwrite</b>.</li>
+    <li>Bảng kế hoạch (dry run) hiển thị trước; bấm <b>Assemble</b> để ghi, sau đó <b>Show kit</b>. File <code>kit_manifest.json</code> ghi lại kết quả.</li>
+  </ul>
+  <div class="box note"><b class="t">An toàn:</b> thư mục bàn giao chỉ được đọc — không file nào bị đổi tên, ghi đè hay xoá. Kết quả đọc mesh được cache nên lần quét sau chỉ đọc file mới / thay đổi.</div>
+  <div class="box use"><b class="t">Ứng dụng:</b> biến một thư mục bàn giao lộn xộn của artist thành bộ asset sạch, đúng naming, đã pack ORM và nối sẵn texture — sẵn sàng import vào engine.</div>
+</div>
+
+<!-- ====================== 10. SUMMARY ====================== -->
+<div>
+  <div class="tabhead"><span class="num">10</span><h2>Tóm tắt ứng dụng các tính năng</h2></div>
+  <table>
+    <tr><th style="width:24%">Tab / Tính năng</th><th style="width:38%">Dùng khi…</th><th>Lợi ích</th></tr>
+    <tr><td><b>Batch Renamer</b></td><td>Tên file không theo chuẩn studio / engine</td><td>Đổi tên hàng loạt theo preset, có Undo</td></tr>
+    <tr><td><b>FBX Doctor</b></td><td>FBX bị mất texture khi import</td><td>Sửa đường dẫn mà không mở DCC, có backup</td></tr>
+    <tr><td><b>Blender Packer</b></td><td>Cần bàn giao / lưu trữ file .blend</td><td>Gom đủ texture, đường dẫn tương đối, đóng zip</td></tr>
+    <tr><td><b>Asset Previewer</b></td><td>Muốn xem nhanh mesh / texture / HDR</td><td>Kiểm tra scale, poly, texture, animation tức thì</td></tr>
+    <tr><td><b>ORM packer / Texture sets</b></td><td>Chuẩn bị texture PBR cho UE5</td><td>Giảm số texture, phát hiện map thiếu</td></tr>
+    <tr><td><b>Converter</b></td><td>Cần đổi định dạng, kích thước, normal DX ↔ GL</td><td>Xử lý hàng loạt, có preview</td></tr>
+    <tr><td><b>Meshes</b></td><td>Audit poly budget, UV, đơn vị</td><td>Thống kê nhiều mesh cùng lúc</td></tr>
+    <tr><td><b>Duplicates / Unused</b></td><td>Project phình to, nhiều file rác</td><td>Dọn dung lượng an toàn, có bằng chứng</td></tr>
+    <tr><td><b>Recipes</b></td><td>Quy trình lặp lại nhiều lần</td><td>Tự động hoá, chạy được trong CI</td></tr>
+    <tr><td><b>Dashboard</b></td><td>Nhận bộ asset mới, chưa biết có gì</td><td>Tổng quan nhanh, không tải file</td></tr>
+    <tr><td><b>Asset Matcher</b></td><td>Không rõ texture nào đi với mesh nào</td><td>Ghép tự động có điểm tin cậy và lý do</td></tr>
+    <tr><td><b>Kit Assembler</b></td><td>Đưa asset đã match vào project</td><td>Bộ kit sạch, đúng naming, đã relink</td></tr>
+  </table>
+
+  <h3>Yêu cầu hệ thống</h3>
+  <ul>
+    <li>Windows 10 / 11 (WebView2 có sẵn trên Windows 11).</li>
+    <li>Blender 5.0+ cho Blender Packer và tuỳ chọn đọc file .blend.</li>
+    <li>Google Drive for desktop nếu làm việc với thư mục trên Drive.</li>
+  </ul>
+  <h3>Cập nhật</h3>
+  <p>Bản cài đặt tự kiểm tra phiên bản mới trên GitHub Releases vài giây sau khi khởi động. Có thể kiểm tra thủ công bằng cách bấm số phiên bản trên header hoặc <span class="k">Ctrl+K</span> → <i>Check for updates…</i>.</p>
+</div>
+
+</body>
+</html>
