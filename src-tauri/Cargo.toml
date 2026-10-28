@@ -1,6 +1,6 @@
 [package]
 name = "poseidon"
-version = "1.0.0"
+version = "1.0.1"
 description = "Poseidon — 3D Asset Toolkit & Doctor"
 authors = ["Phineas"]
 edition = "2021"

@@ -1,7 +1,7 @@
 {
   "name": "poseidon",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Poseidon — 3D Asset Toolkit & Doctor (Tauri 2 + Rust + React)",
   "type": "module",
   "scripts": {

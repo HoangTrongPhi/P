@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-28
+
+Hotfix.
+
+### Fixed
+- **Dashboard**: hover tooltips no longer stutter or jump. They were positioned relative to the
+  card (its backdrop blur made it the containing block for `position: fixed`), so they could land
+  off-screen and shift the layout, and every mouse move re-rendered the whole card. Tooltips now
+  render on top of the page, follow the cursor without re-rendering, and stay inside the window.
+
 ## [1.0.0] - 2026-10-28
 
 First complete release: the Tauri 2 + Rust + React app (developed as "V2") is now the only
