@@ -143,6 +143,11 @@ export function revealInExplorer(path: string): Promise<void> {
   return invoke<void>("reveal_in_explorer", { path });
 }
 
+/** Open the bundled user guide PDF (`vi` / `en`) in the default PDF viewer. */
+export function openUserGuide(lang: string): Promise<void> {
+  return invoke<void>("open_user_guide", { lang });
+}
+
 export function packOrmTexture(config: OrmPackConfig): Promise<string> {
   return invoke<string>("pack_orm_texture", { config });
 }

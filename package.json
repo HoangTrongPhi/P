@@ -1,13 +1,14 @@
 {
   "name": "poseidon",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Poseidon — 3D Asset Toolkit & Doctor (Tauri 2 + Rust + React)",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
+    "guide": "node ../Abyss/scripts/user-guide.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

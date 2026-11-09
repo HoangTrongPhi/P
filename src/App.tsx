@@ -5,6 +5,7 @@ import { SettingsDialog } from "./components/layout/SettingsDialog";
 import { UpdateDialog } from "./components/layout/UpdateDialog";
 import { KitAssemblerDialog } from "./components/tools/KitAssemblerDialog";
 import { CommandPalette } from "./components/layout/CommandPalette";
+import { HelpDialog } from "./components/layout/HelpDialog";
 import { HeaderDashboard } from "./components/layout/HeaderDashboard";
 import { LogDrawer } from "./components/layout/LogDrawer";
 import { NavigationRail } from "./components/layout/NavigationRail";
@@ -68,6 +69,7 @@ export default function App() {
       <UpdateDialog />
       <SettingsDialog />
       <KitAssemblerDialog />
+      <HelpDialog />
     </div>
   );
 }

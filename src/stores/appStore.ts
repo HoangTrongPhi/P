@@ -19,6 +19,10 @@ interface AppState {
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
 
+  /** Help panel (F1), opened on the current tab's topic. */
+  helpOpen: boolean;
+  setHelpOpen: (open: boolean) => void;
+
   logDrawerOpen: boolean;
   toggleLogDrawer: (open?: boolean) => void;
   logDrawerHeight: number;
@@ -56,6 +60,9 @@ export const useAppStore = create<AppState>()((set) => ({
 
   settingsOpen: false,
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+
+  helpOpen: false,
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
 
   logDrawerOpen: true,
   toggleLogDrawer: (open) => set((s) => ({ logDrawerOpen: open ?? !s.logDrawerOpen })),

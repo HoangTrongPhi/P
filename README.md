@@ -26,6 +26,7 @@ Desktop toolkit for 3D artists, TDs and game developers (Tauri 2 + Rust + React)
 ```bash
 npm install
 npm run tauri dev      # desktop app with hot reload
+npm run guide          # docs/user-guide/Poseidon_User_Guide_{vi,en}.pdf from src/help/topics.ts (needs ../Abyss)
 npm run dev            # UI only in a browser (backend calls disabled)
                        # open http://localhost:1420/?mock for a fake backend with sample data
 npm run build          # typecheck and bundle the frontend
@@ -121,6 +122,7 @@ Types for all of them are in `src/types/pipeline.ts`, wrappers in `src/lib/ipc.t
 
 | Keys | Action |
 |---|---|
+| `F1` | Help / Hướng dẫn: usage guide for every tool (Vietnamese / English), opens on the current tab |
 | `Ctrl+K` / `Ctrl+P` | Command palette |
 | `Ctrl+1` … `Ctrl+8` | Switch module |
 | ``Ctrl+` `` | Toggle log drawer |

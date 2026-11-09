@@ -46,6 +46,7 @@ fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::preview_cmd::decode_image,
             commands::preview_cmd::reveal_in_explorer,
             commands::preview_cmd::open_url,
+            commands::preview_cmd::open_user_guide,
             commands::tools_cmd::pack_orm_texture,
             commands::tools_cmd::find_duplicate_assets,
             commands::tools_cmd::find_unused_textures,

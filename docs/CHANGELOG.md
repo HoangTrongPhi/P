@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-09
+
+### Added
+- **Help / Hướng dẫn** (`F1`, the **?** button in the header, or `Ctrl+K` → "Help / Hướng dẫn"):
+  an in-app usage guide in Vietnamese and English for every tool. Topics: Getting started
+  (layout, drag & drop, shortcuts, command palette, log, appearance, updates), Batch Renamer,
+  FBX Doctor, Blender Packer, Asset Previewer, Pipeline Tools (one section per sub-tool: ORM
+  packer, Converter, Duplicates, Unused textures, Texture sets, Meshes), Recipes (incl. the
+  command line), Dashboard, and Asset Matcher & Kit Assembler. Opens on the current tab's topic;
+  topic list with a filter (diacritic-insensitive: "huong dan" finds "Hướng dẫn"), VI / EN switch
+  (remembered, default Vietnamese), `Esc` closes, follows the light / dark theme. The panel
+  (`src/components/help/HelpPanel.tsx`) is generic, with content in `src/help/topics.ts`, so it
+  can move into the shared `@abyss/ui` package.
+- **User guide (PDF)**: `docs/user-guide/Poseidon_User_Guide_vi.pdf` and `_en.pdf`, built from the same
+  content as the Help panel by `npm run guide` (Abyss `scripts/user-guide.mjs`, prints with Edge / Chrome) and
+  bundled with the app. Open it with the **PDF** button in the Help panel header (in the panel's language) or
+  `Ctrl+K` → "User guide (PDF) / Tài liệu hướng dẫn"; it opens in the default PDF viewer.
+  They replace the hand-written `Poseidon_User_Guide.pdf` of 1.0.0.
+
 ## [1.0.1] - 2026-10-28
 
 Hotfix.

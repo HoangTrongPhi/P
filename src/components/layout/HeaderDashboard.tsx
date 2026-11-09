@@ -1,4 +1,4 @@
-import { Boxes, FileWarning, Search } from "lucide-react";
+import { Boxes, CircleHelp, FileWarning, Search } from "lucide-react";
 import { moduleById } from "../../lib/modules";
 import { useAppStore } from "../../stores/appStore";
 import { useUpdateStore } from "../../stores/updateStore";
@@ -19,6 +19,7 @@ export function HeaderDashboard() {
   const assetCount = useAppStore((s) => s.assetCount);
   const brokenPathCount = useAppStore((s) => s.brokenPathCount);
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
+  const setHelpOpen = useAppStore((s) => s.setHelpOpen);
   const appInfo = useAppStore((s) => s.appInfo);
   const update = useUpdateStore((s) => s.available);
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
@@ -45,6 +46,9 @@ export function HeaderDashboard() {
       <div className="flex shrink-0 items-center gap-2">
         <Stat icon={Boxes} label="Assets" value={assetCount} tone="neutral" />
         <Stat icon={FileWarning} label="Broken paths" value={brokenPathCount} tone="rose" />
+        <button type="button" className="icon-btn" title="Help / Hướng dẫn (F1)" aria-label="Help" onClick={() => setHelpOpen(true)}>
+          <CircleHelp className="size-4" strokeWidth={1.75} />
+        </button>
         <button type="button" className="ml-1" title={update ? `v${update.version} is available` : "Check for updates"} onClick={() => void checkForUpdates()}>
           <PillBadge tone={update ? "accent" : appInfo ? "emerald" : "amber"}>
             {update ? `Update v${update.version}` : appInfo ? `v${appInfo.version}` : "browser preview"}

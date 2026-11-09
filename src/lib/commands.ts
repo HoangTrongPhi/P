@@ -1,10 +1,11 @@
-import { FolderOpen, Files, PackageCheck, PanelBottom, RefreshCw, Settings2, SunMoon, Trash2, UserRound, type LucideIcon } from "lucide-react";
+import { CircleHelp, FileText, FolderOpen, Files, PackageCheck, PanelBottom, RefreshCw, Settings2, SunMoon, Trash2, UserRound, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../stores/appStore";
 import { useKitStore } from "../stores/kitStore";
 import { toggleTheme } from "../stores/settingsStore";
 import { useUpdateStore } from "../stores/updateStore";
 import { pickPaths } from "./dialogs";
 import { MODULES } from "./modules";
+import { openUserGuide } from "./userGuide";
 
 export interface PaletteCommand {
   id: string;
@@ -35,7 +36,9 @@ export function buildCommands(): PaletteCommand[] {
     { id: "kit.fromManifest", title: "Assemble kit from manifest…", group: "Actions", icon: PackageCheck, keywords: "asset manifest collect copy project ue5 unity", run: () => void useKitStore.getState().openManifestFile() },
     { id: "view.settings", title: "Appearance settings…", group: "View", icon: Settings2, shortcut: "Ctrl+,", keywords: "theme dark light font size scale zoom preferences options", run: () => s.setSettingsOpen(true) },
     { id: "view.toggleTheme", title: "Toggle light / dark theme", group: "View", icon: SunMoon, keywords: "theme dark light mode appearance", run: toggleTheme },
-    { id: "view.about", title: "About & contact", group: "View", icon: UserRound, keywords: "author email contact info help version", run: () => s.setAboutOpen(true) },
+    { id: "view.help", title: "Help / Hướng dẫn", group: "View", icon: CircleHelp, shortcut: "F1", keywords: "help guide manual documentation tutorial how to huong dan tro giup", run: () => s.setHelpOpen(true) },
+    { id: "view.guidePdf", title: "User guide (PDF) / Tài liệu hướng dẫn", group: "View", icon: FileText, keywords: "help guide manual documentation pdf print huong dan tai lieu", run: () => openUserGuide() },
+    { id: "view.about", title: "About & contact", group: "View", icon: UserRound, keywords: "author email contact info version", run: () => s.setAboutOpen(true) },
     { id: "app.checkUpdates", title: "Check for updates…", group: "Actions", icon: RefreshCw, keywords: "update upgrade new version release download install", run: () => void useUpdateStore.getState().checkForUpdates() },
     { id: "view.clearLog", title: "Clear log", group: "View", icon: Trash2, keywords: "console reset", run: () => s.clearLogs() },
   ];

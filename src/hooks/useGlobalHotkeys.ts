@@ -2,10 +2,17 @@ import { useEffect } from "react";
 import { MODULES } from "../lib/modules";
 import { useAppStore } from "../stores/appStore";
 
-/** Ctrl+K / Ctrl+P palette, Ctrl+` log drawer, Ctrl+, appearance, Ctrl+1…8 module switch. */
+/** F1 help, Ctrl+K / Ctrl+P palette, Ctrl+` log drawer, Ctrl+, appearance, Ctrl+1…8 module switch. */
 export function useGlobalHotkeys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F1" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        const s = useAppStore.getState();
+        s.setPaletteOpen(false);
+        s.setHelpOpen(!s.helpOpen);
+        return;
+      }
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const s = useAppStore.getState();
       const key = e.key.toLowerCase();

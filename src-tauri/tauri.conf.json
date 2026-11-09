@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Poseidon",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "identifier": "com.phineas.poseidon",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -57,7 +57,9 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../dcc_scripts/": "dcc_scripts/"
+      "../dcc_scripts/": "dcc_scripts/",
+      "../docs/user-guide/Poseidon_User_Guide_vi.pdf": "user-guide/Poseidon_User_Guide_vi.pdf",
+      "../docs/user-guide/Poseidon_User_Guide_en.pdf": "user-guide/Poseidon_User_Guide_en.pdf"
     },
     "windows": {
       "webviewInstallMode": {

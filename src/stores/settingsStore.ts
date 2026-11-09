@@ -2,6 +2,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { HelpLang } from "../help/types";
 import { inTauri } from "../lib/ipc";
 
 /**
@@ -39,10 +40,13 @@ interface SettingsState {
   uiFont: string;
   monoFont: string;
   uiScale: number;
+  /** Language of the Help panel (not reset by the appearance Reset). */
+  helpLang: HelpLang;
   setTheme: (theme: ThemeMode) => void;
   setUiFont: (id: string) => void;
   setMonoFont: (id: string) => void;
   setUiScale: (scale: number) => void;
+  setHelpLang: (lang: HelpLang) => void;
   reset: () => void;
 }
 
@@ -52,10 +56,12 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       ...DEFAULTS,
+      helpLang: "vi" as HelpLang,
       setTheme: (theme) => set({ theme }),
       setUiFont: (uiFont) => set({ uiFont }),
       setMonoFont: (monoFont) => set({ monoFont }),
       setUiScale: (uiScale) => set({ uiScale }),
+      setHelpLang: (helpLang) => set({ helpLang }),
       reset: () => set(DEFAULTS),
     }),
     { name: "poseidon.settings", version: 1 },
@@ -86,7 +92,8 @@ function apply(s: Pick<SettingsState, "theme" | "uiFont" | "monoFont" | "uiScale
 /** Apply the saved look now and whenever it (or the Windows theme, in `system` mode) changes. */
 export function initAppearance() {
   apply(useSettingsStore.getState());
-  useSettingsStore.subscribe(apply);
+  // Only appearance fields re-apply (the Help language lives in the same store).
+  useSettingsStore.subscribe((s, prev) => (s.theme !== prev.theme || s.uiFont !== prev.uiFont || s.monoFont !== prev.monoFont || s.uiScale !== prev.uiScale) && apply(s));
   systemDark.addEventListener("change", () => useSettingsStore.getState().theme === "system" && apply(useSettingsStore.getState()));
 }
 

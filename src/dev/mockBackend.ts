@@ -365,6 +365,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has("mock")) {
           return fakeDecode(a.path);
         case "reveal_in_explorer":
         case "open_url":
+        case "open_user_guide":
           return null;
         case "pack_orm_texture":
           await sleep(300);
